@@ -65,12 +65,12 @@ uint32_t frame_buffer_size = 400;
 
 //Function prototypes
 
-void displayMenu();
+void displayMenuPrincipal();
 void clearBuffer();
 uint64_t getImageAverage(string file_name);
 HANDLE abrirPortaSerial(const char* porta);
 void enviarComando(HANDLE hSerial, const std::string& comando);
-
+bool checarAngulo(int angulo);
 
 //Uma classe para manipular eventos de comando do dispositivo
 class CmdSink :public IXCmdSink
@@ -147,6 +147,17 @@ class ImgSink : public IXImgSink
 
 };
 
+//Um dispositivo "genérico" para simular uma conexão
+/*xdevice_ptr = new XDevice(&xsystem);
+xdevice_ptr->SetIP("192.168.1.2");
+xdevice_ptr->SetCmdPort(3000);
+xdevice_ptr->SetImgPort(4001);
+xdevice_ptr->SetDeviceType("1412_KOSTI");
+xdevice_ptr->SetSerialNum("1234567890", 10);
+xdevice_ptr->SetMAC((uint8_t*)"123456");
+xdevice_ptr->SetFirmBuildVer(123);
+xdevice_ptr->SetFirmVer(123);*/
+
 CmdSink cmd_sink;
 ImgSink img_sink;
 
@@ -210,8 +221,8 @@ int main(int argc, char** argv)
 	uint32_t cycle_num = 1;
 	uint32_t frame_num = 1;
 	uint32_t cycle_interval = 0;
-	//uint32_t cycle_it = 0;
 	int32_t cycle_it = 0;
+	int32_t frame_interval = 0;
 
 	//Arduino Connection
 	const char* portaSerial = "\\\\.\\COM4";
@@ -223,7 +234,7 @@ int main(int argc, char** argv)
 		cout << "Conexão estabelecida com o Arduino\n\n";
 	}
 
-	displayMenu();
+	displayMenuPrincipal();
 
 	do
 	{
@@ -234,34 +245,23 @@ int main(int argc, char** argv)
 
 		switch (input_char)
 		{
-		case '1':
+		case '1': //Encontrar dispositivo
 
 			if (!xsystem.Open())
 			{
 				cerr << "Falha ao conectar ao host." << endl;
     			return 0;  // Termina a execução se não conseguir conectar
 			}
-
-			device_count = xsystem.FindDevice();
-			// device_count = 1;
-
+			
+			device_count = xsystem.FindDevice(); // device_count = 1;
+			
 			if (device_count <= 0)
 			{
 				cout << "Nenhum dispositivo encontrado." << endl;
 				return 0;
 			}
 
-			//Get the first device
-			xdevice_ptr = xsystem.GetDevice(0);
-			/*xdevice_ptr = new XDevice(&xsystem);
-			xdevice_ptr->SetIP("192.168.1.2");
-			xdevice_ptr->SetCmdPort(3000);
-			xdevice_ptr->SetImgPort(4001);
-			xdevice_ptr->SetDeviceType("1412_KOSTI");
-			xdevice_ptr->SetSerialNum("1234567890", 10);
-			xdevice_ptr->SetMAC((uint8_t*)"123456");
-			xdevice_ptr->SetFirmBuildVer(123);
-			xdevice_ptr->SetFirmVer(123);*/
+			xdevice_ptr = xsystem.GetDevice(0); //Get the first device
 
 			cout << "Dispositivo encontrado: " << xdevice_ptr->GetIP() << endl;
 			cout << "Porta de comando: " << xdevice_ptr->GetCmdPort() << endl;
@@ -269,7 +269,296 @@ int main(int argc, char** argv)
 
 			break;
 
-		case '2':
+
+		case '2': // Abrir dispositivo
+			if (xcommand.Open(xdevice_ptr))
+			{
+				cout << "Canal de comando aberto com sucesso" << endl;
+
+				if (xacquisition.Open(xdevice_ptr, &xcommand))
+				{
+					cout << "Canal de imagem aberto com sucesso" << endl;
+					
+					//Definindo configurações padrão
+					if (1 != xcommand.SetPara(XPARA_GAIN_RANGE, 1)) //Definindo Ganho como LOW
+						cout << "Falha ao definir o ganho\n\n";
+
+					
+					//Integration time é o tempo que o dispositivo detecta radiação para construir a imagem
+					if (1 != xcommand.SetPara(XPARA_FRAME_PERIOD, 10000000)) //Definindo Integration Time como 10000000 us
+						cout << "Falha ao definir o tempo de integração" << endl << endl;
+
+					//Frame interval é o intervalo entre a finalização de captura de imagem e o início de outra captura
+					frame_interval = 3000; //Definindo frame interval como 3 segundos.
+
+					frame_num = 1;
+					cycle_num = 1;
+
+					//Falta definir o modo de binning
+
+				}
+				else
+					cout << "Falha ao abrir o canal de imagem" << endl;
+			}
+
+			else
+				cout << "Falha ao abrir o canal de comando" << endl;
+
+			break;
+
+
+		case '3': { //Capturar n imagens (sem rotação)
+			int numeroFramesMax;
+			string prefix;
+			string file_directory;
+
+			cout << "Digite a quantidade de imagens:\n";
+			cin >> numeroFramesMax;
+			clearBuffer();
+
+			cout << "Digite o nome prefixo dos arquivos:\n";
+			cin >> prefix;
+			clearBuffer();
+
+			cout << "Digite o nome da pasta diretório para os arquivos\n";
+			cin >> file_directory;
+			clearBuffer();
+
+			cout << "Esperando 4 segundos (segurança)" << endl;
+			Sleep(4000);
+
+			for (int i = 1; i <= numeroFramesMax; i++) {
+				frame_count = 0;
+				lost_frame_count = 0;
+				is_save = 1;
+
+				std::cout << endl << endl << "----------------------" << endl;
+				save_file_name = (file_directory + "/" + prefix + (std::to_string(i)) + ".dat");
+
+				if (!ximg_handle.OpenFile(save_file_name.c_str()))
+				{
+					cout << "Falha ao abrir o arquivo de imagem, retornando ao menu principal" << endl;
+					break;
+				}
+
+				std::cout << "Grabbing " << save_file_name << std::endl;
+				xacquisition.Grab(1); //O detector abre para receber radiação e em paralelo começa a construir a imagem
+				std::cout << "Shooting " << std::endl;
+				frame_complete.Wait(); //O programa espera a imagem terminar de ser construída
+				ximg_handle.CloseFile(); //Faz o imghandler liberar a imagem
+
+				std::cout << endl << "----------------------" << endl;
+				std::cout << "Esperando " << frame_interval << " milissegundos...";
+				Sleep(frame_interval);
+			}
+
+			cout << endl << "Captura de imagens finalizada" << endl;
+			break;
+		}
+
+
+		case '4': { //Iniciar tomografia
+
+			int numeroFramesMax;
+			float angle_variation;
+			string prefix;
+			string file_directory;
+			
+			cout << "Digite a quantidade de imagens para o ensaio\n";
+			cin >> numeroFramesMax;
+			clearBuffer();
+
+			angle_variation = 360 / numeroFramesMax; 
+			if (!checarAngulo(angle_variation)) {
+				cout << "Numero de frames inválido. Voltando ao menu principal\n\n";
+				break;
+			}
+
+			cout << "Digite o nome prefixo dos arquivos:\n";
+			cin >> prefix;
+			clearBuffer();
+
+			cout << "Digite o nome da pasta diretório para os arquivos\n";
+			cin >> file_directory;
+			clearBuffer();
+
+			cout << "Esperando 4 segundos (segurança)" << endl;
+			Sleep(4000);
+
+			for (int i = 1; i <= numeroFramesMax; i++) {
+				frame_count = 0;
+				lost_frame_count = 0;
+				is_save = 1;
+
+				std::cout << endl << endl << "----------------------" << endl;
+				save_file_name = (file_directory + "/" + prefix + (std::to_string(i)) + ".dat");
+
+				if (!ximg_handle.OpenFile(save_file_name.c_str()))
+				{
+					cout << "Falha ao abrir o arquivo de imagem, retornando ao menu principal" << endl;
+					break;
+				}
+
+				std::cout << "Grabbing " << save_file_name << std::endl;
+				xacquisition.Grab(1); //O detector abre para receber radiação e em paralelo começa a construir a imagem
+				std::cout << "Shooting " << std::endl;
+				frame_complete.Wait(); //O programa espera a imagem terminar de ser construída
+				ximg_handle.CloseFile(); //Faz o imghandler liberar a imagem
+
+				enviarComando(hSerial, "1"); //Manda rotacionar a amostra
+				Sleep(1000); //espera para não dar conflito de sinal
+				enviarComando(hSerial, std::to_string(angle_variation)); //manda o angulo para rotação
+				std::cout << endl << "----------------------" << endl;
+				std::cout << "Esperando " << frame_interval << " milissegundos...";
+				Sleep(frame_interval);
+			}
+
+			cout << endl << "Tomografia finalizada" << endl;
+			break;
+		}
+
+
+		case '5': //Fechar dispositivo
+			cout << "Fechando o dispositivo" << endl;
+
+			xacquisition.Close();
+
+			xcommand.Close();
+
+			break;
+
+
+		case '6': { //Exibir configuração atual
+			string str_integracao;
+			if (1 == xcommand.GetPara(XPARA_FRAME_PERIOD, str_integracao))
+				cout << "Tempo de Integracao: " << str_integracao << endl;
+			else
+				cout << "Falha ao exibir tempo de integração" << endl;
+
+			string str_espera = std::to_string(frame_interval);
+			cout << "Tempo de Espera: " << str_espera << endl;
+			
+
+			string str_gain;
+			if (1 == xcommand.GetPara(XPARA_GAIN_RANGE, str_gain))
+				cout << "Modo de Ganho: " << str_gain << endl;
+			else
+				cout << "Falha ao exibir modo de ganho" << endl;
+
+			string str_binning;
+			if (1 == xcommand.GetPara(XPARA_BINNING_MODE, str_binning))
+				cout << "Modo de Binning: " << str_binning << endl;
+			else
+				cout << "Falha ao exibir modo de binning" << endl;
+
+			break;
+		}
+
+
+		case '7': //Restaurar configurações padrão
+
+			//Definindo Integration Time como 10000000 us
+			if (1 == xcommand.SetPara(XPARA_FRAME_PERIOD, 10000000))
+			{
+				cout << "Tempo de integração (=10000000 us) definido com sucesso" << endl << endl;
+			}
+			else
+			{
+				cout << "Falha ao definir o tempo de integração" << endl << endl;
+			}
+
+			//Tempo Espera
+			frame_interval = 3000;
+			cout << "Tempo de espera (=3000 ms) definido com sucesso" << endl << endl;
+
+			//Definindo Ganho como LOW
+			if (1 == xcommand.SetPara(XPARA_GAIN_RANGE, 1))
+			{
+				cout << "Ganho (=Low) definido com sucesso\n\n";
+			}
+			else
+			{
+				cout << "Falha ao definir o ganho\n\n";
+			}
+
+
+			//Definindo 1 frame, 1 numero de ciclo, x ms de cycle interval
+			frame_num = 1;
+			cycle_num = 1;
+
+			cout << "Numero de frame por ciclo (1) definido com sucesso" << endl;
+			cout << "Numero de ciclos (1) definido com sucesso" << endl;
+			break;
+
+
+		case 'I': //Tempo de Integração
+		case 'i':
+			cout << "Por favor insira o tempo de integração (us)" << endl;
+			cin >> cmd_para;
+
+			if (1 == xcommand.SetPara(XPARA_FRAME_PERIOD, cmd_para))
+			{
+				cout << "Tempo de integração definido com sucesso" << endl << endl;
+			}
+			else
+			{
+				cout << "Falha ao definir o tempo de integração" << endl << endl;
+			}
+
+			clearBuffer();
+
+			break;
+
+
+		case 'E': //Tempo de Espera
+		case 'e':
+			cout << "Por favor insira o tempo de espera (ms)" << endl;
+			cin >> frame_interval;
+			cout << "Tempo de espera definido com sucesso" << endl << endl;
+			clearBuffer();
+
+			break;
+
+
+		case 'G': //Modo de Ganho
+		case 'g':
+			cout << "Por favor insira o modo de ganho: \n 1: Baixo ganho\n 256: Alto ganho\n";
+			cin >> cmd_para;
+
+			if (1 == xcommand.SetPara(XPARA_GAIN_RANGE, cmd_para))
+			{
+				cout << "Ganho definido com sucesso\n\n";
+			}
+			else
+			{
+				cout << "Falha ao definir o ganho\n\n";
+			}
+
+			clearBuffer();
+
+			break;
+
+
+		case 'B': //Modo de Binning
+		case 'b':
+			cout << "Por favor insira o modo de binning: \n 0: Original \n 1: 2x2\n";
+			cin >> cmd_para;
+
+			if (1 == xcommand.SetPara(XPARA_BINNING_MODE, cmd_para))
+			{
+				cout << "Modo de binning definido com sucesso\n\n";
+			}
+			else
+			{
+				cout << "Falha ao definir o modo de binning\n\n";
+			}
+
+			clearBuffer();
+
+			break;
+
+
+		case 9: //Configurar conexão do dispositivo
 			cout << "Por favor, insira o IP do dispositivo" << endl;
 			cin >> device_ip;
 
@@ -297,491 +586,13 @@ int main(int argc, char** argv)
 
 			break;
 
-		case '3':
-			if (xcommand.Open(xdevice_ptr))
-			{
-				cout << "Canal de comando aberto com sucesso" << endl;
-
-				if (xacquisition.Open(xdevice_ptr, &xcommand))
-				{
-					cout << "Canal de imagem aberto com sucesso" << endl;
-
-				}
-				else
-					cout << "Falha ao abrir o canal de imagem" << endl;
-			}
-
-			else
-				cout << "Falha ao abrir o canal de comando" << endl;
-
-			break;
-
-		case '4':
-			cout << "Por favor, insira o comando ASCII" << endl;
-			cin >> send_str;
-
-			xcommand.SendAscCmd(send_str, recv_str);
-			cout << "Resposta: " << recv_str << endl;
-
-			break;
-
-		case '5':
-			cout << "Iniciando aquisição" << endl;
-
-			frame_count = 0;
-			lost_frame_count = 0;
-
-			xacquisition.Grab(0);
-
-			break;
-
-		case '6':
-			cout << "Parando aquisição" << endl;
-
-			xacquisition.Stop();
-
-			break;
-
-		case '7':
-			frame_count = 0;
-			lost_frame_count = 0;
-
-			is_save = 1;
-
-			cout << "Por favor coloque o nome do arquivo para salvar, *.dat \n";
-			cin >> save_file_name;
-
-			clearBuffer();
-
-			if (cycle_num == 1) {
-
-				if (!ximg_handle.OpenFile(save_file_name.c_str()))
-				{
-					cout << "Falha ao abrir o arquivo de imagem, retornando ao menu principal" << endl;
-					break;
-				}
-
-				xacquisition.Grab(frame_num);
-
-				frame_complete.Wait();
-				std::cout << "Imagem criada: " << save_file_name << endl;
-			}
-			else {
-				uint64_t media_minima = 10000;
-				string save_file_name_base = save_file_name.substr(0, save_file_name.find(".dat"));
-
-				for (cycle_it = 0; cycle_it < cycle_num; cycle_it++)
-				{
-
-					save_file_name = save_file_name_base + "_cycle_" + to_string(cycle_it) + ".dat";
-
-					if (!ximg_handle.OpenFile(save_file_name.c_str()))
-					{
-						cout << "Falha ao abrir imagem, repetindo ciclo..." << endl;
-						cycle_it--;
-						continue;
-					}
-
-					cout << "Ciclo " << cycle_it << " completo" << endl;
-					frame_complete.WaitTime(cycle_interval);
-
-					if (getImageAverage(save_file_name) < media_minima) {
-						cout << "Imagem abaixo da media desejada" << endl;
-						continue;
-					}
-				}
-
-				cout << endl << "Ciclos completos" << endl;
-			}
-
-			break;
-
-		case '8':
-
-			if (!xcorrection.Open(&xcommand))
-			{
-				cout << "Falha ao abrir o canal de comando, retornando ao menu principal" << endl;
-				break;
-			}
-
-			cout << "Por favor, insira o nome do arquivo de defeitos, *.dat \n";
-
-			if (!xcorrection.LoadDefectsFile())
-			{
-				cout << "Falha ao carregar o mapa de defeitos, retornando ao menu principal" << endl;
-				xcorrection.Close();
-				break;
-			}
-
-			cout << "Por favor, insira o nome do arquivo de offset, *.dat \n";
-
-			cin >> offset_file;
-		
-			if (!ximg_handle.ReadFile(offset_file.c_str()))
-			{
-				cout << "Falha ao abrir o arquivo de offset, retornando ao menu principal" << endl;
-
-				xcorrection.Close();
-				break;
-			}
-
-			if (!xcorrection.CalculateOffset(ximg_handle._images_))
-			{
-				cout << "Falha ao calcular o offset, retornando ao menu principal" << endl;
-
-				xcorrection.Close();
-				break;
-			}
-
-			cout << "Offset calculado com sucesso, por favor insira o nome do arquivo de ganho, *.dat \n";
-
-			cin >> gain_file;
-
-			if (!ximg_handle.ReadFile(gain_file.c_str()))
-			{
-				cout << "Falha ao abrir o arquivo de ganho, retornando ao menu principal" << endl;
-
-				xcorrection.Close();
-				break;
-			}
-
-			if (!xcorrection.CalculateGain(ximg_handle._images_, 0))
-			{
-				cout << "Falha ao calcular o ganho, retornando ao menu principal" << endl;
-
-				xcorrection.Close();
-				break;
-			}
-
-			cout << "Ganho calculado com sucesso, por favor insira o nome do arquivo de imagem, *.dat \n";
-
-			cin >> img_file;
-
-			if (!ximg_handle.ReadFile(img_file.c_str()))
-			{
-				cout << "Falha ao abrir o arquivo de imagem, retornando ao menu principal" << endl;
-
-				xcorrection.Close();
-				break;
-			}
-
-			if (!xcorrection.DoCorrect(ximg_handle._images_))
-			{
-				cout << "Falha ao corrigir a imagem, retornando ao menu principal" << endl;
-
-				xcorrection.Close();
-				break;
-			}
-
-			cout << "Por favor insira o nome do arquivo para salvar a imagem corrigida, *.dat \n";
-
-			cin >> img_file;
-
-			xcorrection.SaveCorrectedImageFile(img_file.c_str());
-
-			xcorrection.Close();
-
-			clearBuffer();
-
-			break;
-
-		case '9':
-			cout << "Fechando o dispositivo" << endl;
-
-			xacquisition.Close();
-
-			xcommand.Close();
-
-			break;
-
-		case 'B':
-		case 'b':
-			cout << "Por favor insira o modo de binning: \n 0: Original \n 1: 2x2\n";
-			cin >> cmd_para;
-
-			if (1 == xcommand.SetPara(XPARA_BINNING_MODE, cmd_para))
-			{
-				cout << "Modo de binning definido com sucesso\n\n";
-			}
-			else
-			{
-				cout << "Falha ao definir o modo de binning\n\n";
-			}
-
-			clearBuffer();
-
-			break;
-
-		case 'I':
-		case 'i':
-			cout << "Por favor insira o tempo de integração (us)" << endl;
-			cin >> cmd_para;
-
-			if (1 == xcommand.SetPara(XPARA_FRAME_PERIOD, cmd_para))
-			{
-				cout << "Tempo de integração definido com sucesso" << endl << endl;
-			}
-			else
-			{
-				cout << "Falha ao definir o tempo de integração" << endl << endl;
-			}
-
-			clearBuffer();
-
-			break;
-
-		case 'G':
-		case 'g':
-			cout << "Por favor insira o modo de ganho: \n 1: Baixo ganho\n 256: Alto ganho\n";
-			cin >> cmd_para;
-
-			if (1 == xcommand.SetPara(XPARA_GAIN_RANGE, cmd_para))
-			{
-				cout << "Ganho definido com sucesso\n\n";
-			}
-			else
-			{
-				cout << "Falha ao definir o ganho\n\n";
-			}
-
-			clearBuffer();
-
-			break;
-
-		case 'C':
-		case 'c':
-			int tmp_input;
-
-			frame_count = 0;
-			lost_frame_count = 0;
-
-			cout << "Por favor insira o número de quadros\n";
-			cin >> tmp_input;
-			frame_num = tmp_input <= 0 ? 1 : tmp_input;
-
-			cout << "Por favor insira o número de ciclos\n";
-			cin >> tmp_input;
-			cycle_num = tmp_input <= 0 ? 1 : tmp_input;
-
-			if (cycle_num > 1)
-			{
-				cout << "Por favor insira o intervalo entre os ciclos (ms)\n";
-				cin >> tmp_input;
-				cycle_interval = tmp_input < 0 ? 0 : tmp_input;
-			}
-
-			cout << endl;
-
-			clearBuffer();
-
-			break;
-
-		//case 'A':
-		//case 'a':
-		//	//Isso era pra tentar barrar uma conexão caso o arduino já estivesse conectado, mas não funcionou
-		//	/*if (hSerial != INVALID_HANDLE_VALUE) {
-		//		cout << "Arduino já está conectado à porta serial\n\n";
-		//		break;
-		//	}*/
-
-		//	hSerial = abrirPortaSerial(portaSerial);
-		//	if (hSerial == INVALID_HANDLE_VALUE) {
-		//		cout << "Falha na conexão com o arduino\n\n";
-		//	}
-		//	else {
-		//		cout << "Conexão estabelecida com o Arduino\n\n";
-		//	}
-		//	break;
-
-		case 'T':
-		case 't': {
-			
-			uint64_t media = 0;
-			uint32_t bad_cycles = 0;
-			string local_file_name;
-
-
-			//PARAMETROS
-			int numeroFramesMax = 200;
-			int intervaloDeEspera = 3000; //Em milissegundos
-			int conscutiveErrors = 0;
-
-
-			cout << "Esperando 4 segundos (segurança)" << endl;
-			Sleep(4000);
-
-			for (int i = 1; i <= numeroFramesMax; i++) {
-				frame_count = 0;
-				lost_frame_count = 0;
-				is_save = 1;
-
-				std::cout << endl << endl << "----------------------" << endl;
-				save_file_name = ("20250904/img" + (std::to_string(i)) + ".dat");
-				local_file_name = save_file_name;
-
-				if (!ximg_handle.OpenFile(save_file_name.c_str()))
-				{
-					cout << "Falha ao abrir o arquivo de imagem, retornando ao menu principal" << endl;
-					break;
-				}
-
-				std::cout << "Grabbing " << save_file_name << std::endl;
-				xacquisition.Grab(1);
-				//Sleep(3000);
-				std::cout << "Shutting " << std::endl;
-				//enviarComando(hSerial, "2"); //Dispara a fonte
-				frame_complete.Wait();
-
-				//Sleep(5000); //Garantir que o handler fez tudo que precisava. Talvez isso não seja necessário; testar
-				ximg_handle.CloseFile(); //Fazer o imghandler liberar a imagem
-				//media = getImageAverage(local_file_name);
-				//std::cout << "Ciclos erro Total : " << bad_cycles << " Consecutivos: " << conscutiveErrors << endl;
-				
-
-				/*if (media < 10000) {
-					i--;
-					bad_cycles++;
-					std::cout << endl << "----------------------" << endl;
-					conscutiveErrors++;
-					if (conscutiveErrors == 5) {
-						std::cout << "Erro no Raios X" << endl;
-						break;
-					}
-					continue;
-				}*/
-				//else {
-				enviarComando(hSerial, "1"); //Gira a amostra
-				//conscutiveErrors = 0;
-				Sleep(1000);
-				enviarComando(hSerial, "1.8");
-				std::cout << endl << "----------------------" << endl;
-				std::cout << "Esperando " << intervaloDeEspera << " milissegundos...";
-				Sleep(intervaloDeEspera);
-				//}
-			}
-
-			cout << endl << "Tomografia finalizada" << endl;
-			//cout << "Ciclos ruins: " << bad_cycles << endl << endl;
-			break;
-		}
-		
-		case 'P':
-		case 'p': {
-			frame_count = 0;
-			lost_frame_count = 0;
-
-			//Definindo Ganho como LOW
-			if (1 == xcommand.SetPara(XPARA_GAIN_RANGE, 1))
-			{
-				cout << "Ganho (Low) definido com sucesso\n\n";
-			}
-			else
-			{
-				cout << "Falha ao definir o ganho\n\n";
-			}
-
-			//Definindo Integration Time como 10000000 us
-			if (1 == xcommand.SetPara(XPARA_FRAME_PERIOD, 10000000))
-			{
-				cout << "Tempo de integração (10000000 us) definido com sucesso" << endl << endl;
-			}
-			else
-			{
-				cout << "Falha ao definir o tempo de integração" << endl << endl;
-			}
-			
-			//Definindo 1 frame, 1 numero de ciclo, x ms de cycle interval
-			frame_num = 1;
-			cycle_num = 1;
-			//cycle_interval = 9000;
-
-			cout << "Numero de frame por ciclo (1) definido com sucesso" << endl;
-			cout << "Numero de ciclos (1) definido com sucesso" << endl;
-			//cout << "Intervalo entre ciclos (9000 ms) definido com sucesso" << endl << endl;
-
-			break;
-		}
-
-		case 'm':
-		case 'M': {
-			string file_name_media;
-			cout << "Por favor coloque o nome do arquivo para calcular a media, *.dat \n";
-			cin >> file_name_media;
-			uint64_t media = getImageAverage(file_name_media);
-			break;
-		}
-
-		case 'f':
-		case 'F': {
-
-			string local_file_name;
-
-			//PARAMETROS
-			int numeroFramesMax = 5;
-			int intervaloDeEspera = 4000; //Em milissegundos
-
-			cout << "Esperando 3 segundos (segurança)" << endl;
-			Sleep(3000);
-
-			for (int i = 1; i <= numeroFramesMax; i++) {
-				frame_count = 0;
-				is_save = 1;
-
-				std::cout << endl << endl << "----------------------" << endl;
-				save_file_name = ("20250904/flat" + (std::to_string(i)) + ".dat");
-				local_file_name = save_file_name;
-
-				if (!ximg_handle.OpenFile(save_file_name.c_str()))
-				{
-					cout << "Falha ao abrir o arquivo de imagem, retornando ao menu principal" << endl;
-					break;
-				}
-				
-				std::cout << "Grabbing " << save_file_name << std::endl;
-				xacquisition.Grab(1);
-				//TESTE Sleep(3000);
-				std::cout << "Shooting " << std::endl;
-				//enviarComando(hSerial, "2"); //Dispara a fonte
-				frame_complete.Wait();
-
-				//Sleep(5000); //Garantir que o handler fez tudo que precisava. Talvez isso não seja necessário; testar
-				ximg_handle.CloseFile(); //Fazer o imghandler liberar a imagem
-				//media = getImageAverage(local_file_name);
-				//std::cout << "Ciclos erro Total : " << bad_cycles << " Consecutivos: " << conscutiveErrors << endl;
-				std::cout << "Esperando " << intervaloDeEspera << " milissegundos...";
-				Sleep(intervaloDeEspera);
-
-				//if (media < 10000) {
-				//	i--;
-				//	bad_cycles++;
-				//	std::cout << endl << "----------------------" << endl;
-				//	conscutiveErrors++;
-				//	if (conscutiveErrors == 5) {
-				//		std::cout << "Erro no Raios X" << endl;
-				//		break;
-				//	}
-				//	continue;
-				//}
-				//else {
-				//	enviarComando(hSerial, "1"); //Gira a amostra
-				//	conscutiveErrors = 0;
-				//	Sleep(1000);
-				//	enviarComando(hSerial, "7.2");
-				//	std::cout << endl << "----------------------" << endl;
-				//}
-			}
-
-			cout << endl << "Flats obtidos" << endl;
-			//cout << "Ciclos ruins: " << bad_cycles << endl << endl;
-			break;
-		}
-
 		default:
 			break;
 
 		}
 
-	} while ((input_char != 'q'));
+	} while ((input_char != '0'));
+
 
 	xacquisition.Close();
 
@@ -794,31 +605,29 @@ int main(int argc, char** argv)
 	return 1;
 }
 
-void displayMenu()
+void displayMenuPrincipal()
 {
-	cout << "Bem-vindo ao programa de demonstração do X-LIB\n\n";
+	cout << "Bem-vindo ao programa de demonstração do X-LIB\n";
 	cout << "Por favor, escolha uma opção a partir das seguintes: \n\n";
-	cout << "1- Encontrar dispositivo\n";
-	cout << "2- Configurar dispositivo\n";
-	cout << "3- Abrir dispositivo\n";
-	cout << "4- Enviar comando ASII\n";
-	cout << "5- Capturar\n";
-	cout << "6- Parar\n";
-	cout << "7- Capturar e salvar\n";
-	cout << "8- Arquivo corrigido\n";
-	cout << "9- Fechar dispositivo\n";
-	cout << "B- Modo de binning\n";
-	cout << "C- Parâmetros de ciclo\n";
-	cout << "G- Ganho\n";
-	cout << "I- Tempo de integração\n";
-	//cout << "A- Conectar ao arduino\n";
-	cout << "T- Tomografia\n";
-	cout << "M- Media\n";
-	cout << "P- Configurações padrão\n";
-	cout << "F- FLATS\n";
 
-	cout << "q- Sair do programa\n\n\n";
+	cout << "1- Encontrar dispositivo\n";
+	cout << "2- Abrir dispositivo\n";
+	cout << "3- Capturar n imagens (sem rotação)\n";
+	cout << "4- Iniciar Tomografia\n";
+	cout << "5- Fechar dispositivo\n\n";
+
+	cout << "6- Exibir configuração atual\n";
+	cout << "7- Restaurar configurações padrão\n";
+	cout << "I- Tempo de Integração\n";
+	cout << "E- Tempo de Espera\n";
+	cout << "G- Modo de Ganho\n";
+	cout << "B- Modo de Binning\n";
+	cout << "C- Parâmetros de Ciclo\n\n";
+
+	cout << "9- Configurar conexão do dispositivo\n";
+	cout << "0- Sair do programa\n\n";
 }
+
 
 void clearBuffer() {
 	cin.ignore(10000, '\n');
@@ -866,8 +675,6 @@ void enviarComando(HANDLE hSerial, const std::string& comando) {
 uint64_t getImageAverage(string file_name) {
 	std::ifstream imagemDat;
 
-	std::cout << "Arquivo de media: " << file_name << endl;
-
 	imagemDat.open(file_name, std::ios::binary);
 	if (!imagemDat.good()) {
 		return 0;
@@ -886,13 +693,42 @@ uint64_t getImageAverage(string file_name) {
 	imagemDat.close();
 
 	uint64_t media = soma_total / (1400 * 1200);
-
-	std::cout << "\nMedia de " << file_name << ": " << media << std::endl;
-	if (media < 10000)
-		std::cout << "Imagem abaixo da media, repetindo processo..." << std::endl;
-	else
-		std::cout << "Imagem igual ou acima da media" << std::endl;
 	return media;
 }
 
+bool checarAngulo(int angulo) {
+	float angs_validos[] = {
+		0.225,
+		0.45,
+		0.9,
+		1.125,
+		1.8,
+		2.25,
+		3.6,
+		4.5,
+		5.625,
+		7.2,
+		9,
+		11.25,
+		14.4,
+		18,
+		22.5,
+		36,
+		45,
+		72,
+		90, //no repositório tava 70, mas imagino que era pra ser 90
+		180
+	};
+
+	int tamanho = 20; //angs_validos.size(), ver isso depois
+
+
+	for (int i = 0; i < tamanho; i++) {
+		if (angulo == angs_validos[i])
+			return true;
+	}
+
+	return false;
+
+}
 
