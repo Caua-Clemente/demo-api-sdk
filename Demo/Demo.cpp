@@ -558,7 +558,7 @@ int main(int argc, char** argv)
 			break;
 
 
-		case 9: //Configurar conexão do dispositivo
+		case '9': //Configurar conexão do dispositivo
 			cout << "Por favor, insira o IP do dispositivo" << endl;
 			cin >> device_ip;
 
@@ -698,26 +698,26 @@ uint64_t getImageAverage(string file_name) {
 
 bool checarAngulo(int angulo) {
 	float angs_validos[] = {
-		0.225,
-		0.45,
-		0.9,
-		1.125,
-		1.8,
-		2.25,
-		3.6,
-		4.5,
-		5.625,
-		7.2,
-		9,
-		11.25,
-		14.4,
-		18,
-		22.5,
-		36,
-		45,
-		72,
-		90, //no repositório tava 70, mas imagino que era pra ser 90
-		180
+		0.225, //1600
+		0.45, //800
+		0.9, //400
+		1.125, //320
+		1.8, //200
+		2.25, //160
+		3.6, //100
+		4.5, //80
+		5.625, //64
+		7.2, //50
+		9, //40
+		11.25, //32
+		14.4, //25
+		18, //20
+		22.5, //16
+		36, //10
+		45, //8
+		72, //5
+		90, //4
+		180 //2
 	};
 
 	int tamanho = 20; //angs_validos.size(), ver isso depois

@@ -36,18 +36,27 @@ public:
 private slots:
 	void on_connect_btn_clicked();
     void on_device_select_changed(int);
-    void on_acquisition_mode_changed(int);
     void on_device_info_update_btn_clicked();
-    void on_choose_file_name_btn_clicked();
-	void on_operation_mode_changed(int);
-    void on_grab_btn_clicked();
-	void on_stop_grab_btn_clicked();
+
+    void on_acquisition_mode_changed(int);
+    void on_mechanical_mode_changed(int);
     void on_binning_mode_changed(int);
     void on_gain_mode_changed(int);
-	void on_integration_time_changed();
-	void on_num_cycles_changed();
-    void on_cycles_interval_input_changed();
-	void on_num_frames_changed();
+    void on_integration_time_changed();
+    void on_interval_time_changed();
+    void on_image_quantity_combobox_changed(int);
+    void on_image_quantity_input_changed();
+    void on_file_prefix_input_changed();
+
+    int  get_total_approximate_time();
+    void set_total_approximate_time();
+
+    void on_choose_file_path_btn_clicked();
+    void on_grab_btn_clicked();
+	void on_stop_grab_btn_clicked();
+
+    void update_progress_tab(int, int, int, std::string);
+    void update_displayed_image(int);
 
 private:
     Ui::QtGuiClass ui;
