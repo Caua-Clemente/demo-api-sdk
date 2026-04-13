@@ -1,5 +1,10 @@
 #pragma once
 
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#include <winsock2.h>
+#include <windows.h>
+
 #include <QtWidgets/QMainWindow>
 #include <QObject>
 #include "ui_QtGui.h"
@@ -32,6 +37,8 @@ public:
     void set_lost_frame_count(uint32_t);
     void set_is_save(bool);
     void set_save_file_name(std::string);
+    HANDLE abrirPortaSerial(const char*);
+    void enviarComando(HANDLE, const std::string& );
 
 private slots:
 	void on_connect_btn_clicked();
@@ -75,4 +82,5 @@ private:
     uint32_t frame_count; // Contagem de quadros
     bool is_save; // Flag para salvar
     std::string save_file_name; // Nome do arquivo para salvar
+    HANDLE hserial;
 };

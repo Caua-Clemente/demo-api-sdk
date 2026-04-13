@@ -149,6 +149,14 @@ void QtGui::on_connect_btn_clicked() {
 		ui.deviceSelect->addItem("Dispositivo " + QString::number(i + 1));
 	}
 
+	const char* portaSerial = "\\\\.\\COM4";
+	this->hserial = abrirPortaSerial(portaSerial);
+	if (hserial == INVALID_HANDLE_VALUE) {
+		QMessageBox::critical(this, "Erro", "Falha na conexão com o arduino");	}
+	else {
+		QMessageBox::information(this, "Status", "Conexão estabelecida com o Arduino");
+	}
+
 	QMessageBox::information(this, "Status", "Conectado com sucesso ao host " + host_ip + ".");
 }
 
@@ -379,14 +387,16 @@ void QtGui::on_grab_btn_clicked() {
 		this->ximg_handle.CloseFile();
 		if (acquisition_mode == "Tomografia") {
 			if (mechanical_mode == "Arduino") {
-				//enviarComando(hSerial, "1");
-				//Sleep(1000);
-				//enviarComando(hSerial, std::to_string(angle_variation));
+				enviarComando(this->hserial, "1");
+				Sleep(1000);
+				float angle = ui.imageQuantityComboBox->currentText().toFloat();
+				enviarComando(this->hserial, std::to_string(angle));
 			}
 			else {
-				//enviarComando(hSerial, "1");
+				//enviarComando(this->hserial, "1");
 				//Sleep(1000);
-				//enviarComando(hSerial, std::to_string(angle_variation));
+				//angle = ui.imageQuantityComboBox->currentText().toFloat();
+				//enviarComando(this->hserial, std::to_string(angle));
 			}
 		}
 		Sleep(interval_time);
@@ -436,12 +446,16 @@ void QtGui::update_progress_tab(int index, int total_images, int total_approxima
 	QString current_displayed_string = QString("Exibindo: %1%2.dat")
 		.arg(QString::fromStdString(file_prefix))
 		.arg(index - 1, 1, 10, QChar('0'));
-
+	
+	// Progress bar
+	ui.progressBar->setMaximum(total_images);
+	ui.progressBar->setValue(index);
 
 	QString elapsed_time_string = QString("Tempo decorrido: ---");
 
 	if (index == 0) {
 		current_displayed_string = QString("Exibindo: ---");
+		ui.progressBar->setRange(0, total_images);
 	}
 	else if (index < total_images) {
 
@@ -452,6 +466,7 @@ void QtGui::update_progress_tab(int index, int total_images, int total_approxima
 		ui.remainingTimeLabel->setText("Tempo restante: ---");
 	}
 	
+	ui.progressBar->setValue(index);
 	ui.currentStatusLabel->setText(status_string);
 	ui.currentDisplayedImageLabel->setText(current_displayed_string);
 
@@ -463,13 +478,24 @@ void QtGui::update_displayed_image(int index) {
 	int height = 1400;
 	int total_size = width * height;
 	
+	
 	QFile file(QString::fromStdString(this->get_save_file_name()));
 	file.open(QIODevice::ReadOnly);
 
 	QByteArray data_u16_bits = file.readAll();
 	QByteArray data_u8_bits(total_size,0);
+
+	unsigned short int b16_value = 0;
+	unsigned char b8_value = 0;
+
 	for (int i = 0; i < total_size; i++) {
-		data_u8_bits[i] = data_u16_bits[(i * 2) + 1];
+		b16_value = 
+			(unsigned char) data_u16_bits[i * 2] | 
+			((unsigned char) data_u16_bits[(i * 2) + 1] << 8);
+
+		b8_value = (unsigned char) ((b16_value * 255) / 65535);
+		
+		data_u8_bits[i] = b8_value;
 	}
 
 	QImage img((uchar*)data_u8_bits.data(),
@@ -564,6 +590,46 @@ void QtGui::set_is_save(bool is_save) {
 void QtGui::set_save_file_name(std::string save_file_name) {
 	this->save_file_name = save_file_name;
 }
+
+HANDLE QtGui::abrirPortaSerial(const char* porta) {
+	HANDLE hSerial = CreateFileA(porta, GENERIC_WRITE, 0, 0, OPEN_EXISTING, 0, 0);
+	if (hSerial == INVALID_HANDLE_VALUE) {
+		QMessageBox::critical(this, "Erro", "Erro ao abrir a porta serial");
+
+		return INVALID_HANDLE_VALUE;
+	}
+
+	DCB dcbSerialParams = { 0 };
+	dcbSerialParams.DCBlength = sizeof(dcbSerialParams);
+
+	if (!GetCommState(hSerial, &dcbSerialParams)) {
+		QMessageBox::critical(this, "Erro", "Erro ao obter configurações da porta serial");
+		CloseHandle(hSerial);
+		return INVALID_HANDLE_VALUE;
+	}
+
+	dcbSerialParams.BaudRate = CBR_9600;
+	dcbSerialParams.ByteSize = 8;
+	dcbSerialParams.StopBits = ONESTOPBIT;
+	dcbSerialParams.Parity = NOPARITY;
+
+	if (!SetCommState(hSerial, &dcbSerialParams)) {
+		QMessageBox::critical(this, "Erro", "Erro ao configurar a porta serial!");
+		CloseHandle(hSerial);
+		return INVALID_HANDLE_VALUE;
+	}
+
+	return hSerial;
+}
+
+void QtGui::enviarComando(HANDLE hSerial, const std::string& comando) {
+	if (hSerial == INVALID_HANDLE_VALUE) return;
+
+	std::string comandoFinal = comando + "\n";
+	DWORD bytesEnviados;
+	WriteFile(hSerial, comandoFinal.c_str(), comandoFinal.length(), &bytesEnviados, NULL);
+}
+
 
 QtGui::~QtGui()
 {}
