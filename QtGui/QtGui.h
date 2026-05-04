@@ -1,11 +1,7 @@
 #pragma once
 
-#define WIN32_LEAN_AND_MEAN
-#define NOMINMAX
-#include <winsock2.h>
-#include <windows.h>
-
 #include <QtWidgets/QMainWindow>
+#include <QtSerialPort/QSerialPort>
 #include <QObject>
 #include "ui_QtGui.h"
 
@@ -26,7 +22,7 @@ class QtGui : public QMainWindow
 public:
     QtGui(QWidget *parent = nullptr);
     ~QtGui();
-    QString get_file_name();
+    QString get_path_name();
     uint32_t get_frame_count();
     uint32_t get_lost_frame_count();
     bool get_is_save();
@@ -37,8 +33,6 @@ public:
     void set_lost_frame_count(uint32_t);
     void set_is_save(bool);
     void set_save_file_name(std::string);
-    HANDLE abrirPortaSerial(const char*);
-    void enviarComando(HANDLE, const std::string& );
 
 private slots:
 	void on_connect_btn_clicked();
@@ -47,6 +41,8 @@ private slots:
 
     void on_acquisition_mode_changed(int);
     void on_mechanical_mode_changed(int);
+    void on_mechanical_connect_btn_clicked();
+
     void on_binning_mode_changed(int);
     void on_gain_mode_changed(int);
     void on_integration_time_changed();
@@ -63,7 +59,14 @@ private slots:
 	void on_stop_grab_btn_clicked();
 
     void update_progress_tab(int, int, int, std::string);
-    void update_displayed_image(int);
+    void update_displayed_image();
+
+    void arduino_connect_serial_port();
+    void arduino_send_command(const std::string&);
+    void arduino_serial_read();
+
+    void on_operation_start_disable_all();
+    void on_operation_end_enable_all();
 
 private:
     Ui::QtGuiClass ui;
@@ -77,10 +80,12 @@ private:
     XCommand xcommand;
     XFrameTransfer xtransfer;
     XAcquisition xacquisition;
-	QString file_name;
-    uint32_t lost_frame_count; // Contagem de quadros perdidos
-    uint32_t frame_count; // Contagem de quadros
-    bool is_save; // Flag para salvar
+	QString path_name;
+    uint32_t lost_frame_count = 0; // Contagem de quadros perdidos
+    uint32_t frame_count = 0; // Contagem de quadros
+    bool is_save = true; // Flag para salvar
     std::string save_file_name; // Nome do arquivo para salvar
-    HANDLE hserial;
+    QSerialPort* serial;
+    QByteArray buffer;
+    bool stop_bnt_pressed = false;
 };

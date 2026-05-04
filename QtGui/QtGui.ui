@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>1000</width>
-    <height>642</height>
+    <height>666</height>
    </rect>
   </property>
   <property name="minimumSize">
@@ -18,7 +18,7 @@
   </property>
   <property name="maximumSize">
    <size>
-    <width>1000</width>
+    <width>1050</width>
     <height>16777215</height>
    </size>
   </property>
@@ -144,13 +144,13 @@ QPushButton:disabled {
 </string>
       </property>
       <property name="currentIndex">
-       <number>1</number>
+       <number>0</number>
       </property>
       <widget class="QWidget" name="tab_1">
        <attribute name="title">
         <string>Conexão e dispositivos</string>
        </attribute>
-       <layout class="QVBoxLayout" name="verticalLayout_10">
+       <layout class="QVBoxLayout" name="verticalLayout_21">
         <item>
          <layout class="QHBoxLayout" name="horizontalLayout_3">
           <property name="topMargin">
@@ -764,7 +764,7 @@ QPushButton:disabled {
        <attribute name="title">
         <string>Operação</string>
        </attribute>
-       <layout class="QVBoxLayout" name="verticalLayout_21">
+       <layout class="QVBoxLayout" name="verticalLayout_10">
         <item>
          <layout class="QHBoxLayout" name="horizontalLayout_9">
           <property name="topMargin">
@@ -822,12 +822,12 @@ QPushButton:disabled {
               </property>
               <item>
                <property name="text">
-                <string>Radiografia</string>
+                <string>Tomografia</string>
                </property>
               </item>
               <item>
                <property name="text">
-                <string>Tomografia</string>
+                <string>Radiografia</string>
                </property>
               </item>
              </widget>
@@ -899,14 +899,42 @@ QPushButton:disabled {
                 <string>Arduino</string>
                </property>
               </item>
-              <item>
-               <property name="text">
-                <string>Raspberry PI</string>
-               </property>
-              </item>
              </widget>
             </item>
            </layout>
+          </item>
+         </layout>
+        </item>
+        <item>
+         <layout class="QHBoxLayout" name="horizontalLayout_14">
+          <property name="bottomMargin">
+           <number>34</number>
+          </property>
+          <item>
+           <spacer name="horizontalSpacer_13">
+            <property name="orientation">
+             <enum>Qt::Orientation::Horizontal</enum>
+            </property>
+            <property name="sizeType">
+             <enum>QSizePolicy::Policy::Expanding</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>40</width>
+              <height>20</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+          <item>
+           <widget class="QPushButton" name="mechanicalConnectBtn">
+            <property name="enabled">
+             <bool>false</bool>
+            </property>
+            <property name="text">
+             <string>Conectar</string>
+            </property>
+           </widget>
           </item>
          </layout>
         </item>
@@ -1095,6 +1123,9 @@ QPushButton:disabled {
                 <height>16777215</height>
                </size>
               </property>
+              <property name="text">
+               <string>1000000</string>
+              </property>
              </widget>
             </item>
            </layout>
@@ -1200,7 +1231,7 @@ QPushButton:disabled {
                </size>
               </property>
               <property name="currentIndex">
-               <number>0</number>
+               <number>1</number>
               </property>
               <widget class="QWidget" name="page_1">
                <widget class="QComboBox" name="imageQuantityComboBox">
@@ -1230,6 +1261,106 @@ QPushButton:disabled {
                 <property name="placeholderText">
                  <string/>
                 </property>
+                <item>
+                 <property name="text">
+                  <string>2</string>
+                 </property>
+                </item>
+                <item>
+                 <property name="text">
+                  <string>4</string>
+                 </property>
+                </item>
+                <item>
+                 <property name="text">
+                  <string>5</string>
+                 </property>
+                </item>
+                <item>
+                 <property name="text">
+                  <string>8</string>
+                 </property>
+                </item>
+                <item>
+                 <property name="text">
+                  <string>10</string>
+                 </property>
+                </item>
+                <item>
+                 <property name="text">
+                  <string>16</string>
+                 </property>
+                </item>
+                <item>
+                 <property name="text">
+                  <string>20</string>
+                 </property>
+                </item>
+                <item>
+                 <property name="text">
+                  <string>25</string>
+                 </property>
+                </item>
+                <item>
+                 <property name="text">
+                  <string>32</string>
+                 </property>
+                </item>
+                <item>
+                 <property name="text">
+                  <string>40</string>
+                 </property>
+                </item>
+                <item>
+                 <property name="text">
+                  <string>50</string>
+                 </property>
+                </item>
+                <item>
+                 <property name="text">
+                  <string>64</string>
+                 </property>
+                </item>
+                <item>
+                 <property name="text">
+                  <string>80</string>
+                 </property>
+                </item>
+                <item>
+                 <property name="text">
+                  <string>100</string>
+                 </property>
+                </item>
+                <item>
+                 <property name="text">
+                  <string>160</string>
+                 </property>
+                </item>
+                <item>
+                 <property name="text">
+                  <string>200</string>
+                 </property>
+                </item>
+                <item>
+                 <property name="text">
+                  <string>320</string>
+                 </property>
+                </item>
+                <item>
+                 <property name="text">
+                  <string>400</string>
+                 </property>
+                </item>
+                <item>
+                 <property name="text">
+                  <string>800</string>
+                 </property>
+                </item>
+                <item>
+                 <property name="text">
+                  <string>1600</string>
+                 </property>
+                </item>
                </widget>
               </widget>
               <widget class="QWidget" name="page_2">
@@ -1262,6 +1393,9 @@ QPushButton:disabled {
                   <width>200</width>
                   <height>16777215</height>
                  </size>
+                </property>
+                <property name="text">
+                 <string>1</string>
                 </property>
                </widget>
               </widget>
@@ -1312,7 +1446,7 @@ QPushButton:disabled {
             <item>
              <widget class="QLineEdit" name="totalTimeInput">
               <property name="enabled">
-               <bool>false</bool>
+               <bool>true</bool>
               </property>
               <property name="sizePolicy">
                <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
@@ -1331,6 +1465,9 @@ QPushButton:disabled {
                 <width>200</width>
                 <height>16777215</height>
                </size>
+              </property>
+              <property name="text">
+               <string>000:00:00</string>
               </property>
               <property name="readOnly">
                <bool>true</bool>
@@ -2015,6 +2152,9 @@ QPushButton:disabled {
          <layout class="QVBoxLayout" name="verticalLayout_23">
           <item>
            <widget class="QLabel" name="imageLabel">
+            <property name="enabled">
+             <bool>false</bool>
+            </property>
             <property name="sizePolicy">
              <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
               <horstretch>0</horstretch>
@@ -2027,8 +2167,25 @@ QPushButton:disabled {
               <height>120</height>
              </size>
             </property>
+            <property name="maximumSize">
+             <size>
+              <width>430</width>
+              <height>370</height>
+             </size>
+            </property>
+            <property name="layoutDirection">
+             <enum>Qt::LayoutDirection::LeftToRight</enum>
+            </property>
+            <property name="autoFillBackground">
+             <bool>false</bool>
+            </property>
+            <property name="styleSheet">
+             <string notr="true">QFrame {
+    border: 2px solid black;
+}</string>
+            </property>
             <property name="text">
-             <string>QLABEL AQUI</string>
+             <string/>
             </property>
             <property name="scaledContents">
              <bool>false</bool>
@@ -2147,7 +2304,7 @@ QProgressBar::chunk {
  </widget>
  <layoutdefault spacing="6" margin="11"/>
  <resources>
-  <include location="repositorios/demo-api-sdk/QtGui/QtGui.qrc"/>
+  <include location="QtGui.qrc"/>
  </resources>
  <connections/>
 </ui>
