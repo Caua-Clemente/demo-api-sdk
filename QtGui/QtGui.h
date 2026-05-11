@@ -3,6 +3,9 @@
 #include <QtWidgets/QMainWindow>
 #include <QtSerialPort/QSerialPort>
 #include <QObject>
+#include <QMutex>
+#include <QWaitCondition>
+
 #include "ui_QtGui.h"
 
 #include "CmdSink.h"
@@ -68,6 +71,9 @@ private slots:
     void on_operation_start_disable_all();
     void on_operation_end_enable_all();
 
+    void escreverMensagem(const QString&, const QString&);
+
+
 private:
     Ui::QtGuiClass ui;
     CmdSink* cmd_sink;
@@ -88,4 +94,8 @@ private:
     QSerialPort* serial;
     QByteArray buffer;
     bool stop_bnt_pressed = false;
+
+    //QList<Request> queue;
+    QMutex sync;
+    //QWaitCondition cond;
 };

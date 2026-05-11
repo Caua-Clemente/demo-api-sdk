@@ -2,6 +2,10 @@
 #include "QtDebug"
 #include "QMessageBox"
 #include "QFileDialog"
+#include <QFile>
+#include <QTextStream>
+#include <QMutex>
+#include <QWaitCondition>
 
 #include "stdafx.h"
 
@@ -226,6 +230,7 @@ void QtGui::on_device_select_changed(int index) {
 	ui.integrationTimeInput->setDisabled(false);
 	ui.intervalTimeInput->setDisabled(false);
 
+	ui.imageQuantityStackedWidget->setDisabled(false);
 	ui.imageQuantityComboBox->setDisabled(false);
 	ui.imageQuantityInput->setDisabled(false);
 
@@ -310,14 +315,14 @@ void QtGui::arduino_connect_serial_port() {
 	if (serial->isOpen())
 		serial->close();
 
-	serial->setPortName("COM3");
+	serial->setPortName("COM4");
 	serial->setBaudRate(QSerialPort::Baud9600);
 	serial->setDataBits(QSerialPort::Data8);
 	serial->setParity(QSerialPort::NoParity);
 	serial->setStopBits(QSerialPort::OneStop);
 	serial->setFlowControl(QSerialPort::NoFlowControl);
 
-	if (!serial->open(QIODevice::WriteOnly)) {
+	if (!serial->open(QIODevice::ReadWrite )) {//| QIODevice::Unbuffered)
 		QMessageBox::critical(this, "Erro:", "N\u00E3o foi possível abrir a porta serial:\n" + serial->errorString());
 	}
 	else {
@@ -433,6 +438,8 @@ void QtGui::on_grab_btn_clicked() {
 		image_quantity = ui.imageQuantityInput->text().toInt();
 	}
 
+	escreverMensagem("log.txt", "Programa iniciado");
+
 	QMessageBox::information(this, "Dispositivo pronto", "clique no bot\u00E3o para iniciar a opera\u00E7\u00E3o");
 
 	//desabilitando todos os inputs exceto o parar. Sempre que o grab parar seja lá qual o motivo, a função para habilitar os inputs deve ser chamada
@@ -440,6 +447,7 @@ void QtGui::on_grab_btn_clicked() {
 
 	this->stop_bnt_pressed == false;
 	for (int i = 0; i < image_quantity && this->stop_bnt_pressed == false; i++) {
+		sync.lock();
 		update_progress_tab(i, image_quantity, total_approximate_time, file_prefix);
 
 		this->set_is_save(true);
@@ -456,18 +464,25 @@ void QtGui::on_grab_btn_clicked() {
 		this->xacquisition.Grab(1);
 		this->xevent.Wait();
 		this->ximg_handle.CloseFile();
+		QtDebugMsg("imagem salva");
 
 		if (acquisition_mode == "Tomografia") {
 			/*if (mechanical_mode == "Arduino") {
 			}
 			else {
 			}*/
+
+			QString iteracao;
 			arduino_send_command("1");
+			escreverMensagem("log.txt", "iteracao comando 1");
+			//QMessageBox::information(this, "operacao", "comando 1 enviado.");
 			Sleep(1000);
 			float angle = 360.0f / (ui.imageQuantityComboBox->currentText().toFloat());
 			arduino_send_command(std::to_string(angle));
-			
+			escreverMensagem("log.txt", "iteracao comando 2");
+			//QMessageBox::information(this, "angulo enviado:", "comando 2 enviado");
 		}
+		sync.unlock();
 		Sleep(interval_time);
 	}
 
@@ -479,8 +494,13 @@ void QtGui::on_grab_btn_clicked() {
 
 void QtGui::arduino_send_command(const std::string& comando) {
 
-	if (!serial->isOpen()) return;
+	if (!serial->isOpen()) {
+		QMessageBox::critical(this, "porta serial:", "porta serial nao esta aberta");
+		return;
+	}
 	serial->write((comando + "\n").c_str());
+	serial->waitForBytesWritten(1000);
+	serial->flush();
 }
 
 void QtGui::arduino_serial_read() {
@@ -734,6 +754,24 @@ void QtGui::set_total_approximate_time() {
 			.arg(ss, 2, 10, QChar('0'));
 
 		ui.totalTimeInput->setText(text);
+	}
+}
+
+void QtGui::escreverMensagem(const QString& caminhoArquivo, const QString& mensagem)
+{
+	QFile arquivo(caminhoArquivo);
+
+	// Abre o arquivo em modo Append (adiciona no final)
+	if (arquivo.open(QIODevice::WriteOnly | QIODevice::Append | QIODevice::Text))
+	{
+		QTextStream out(&arquivo);
+		out << mensagem << "\n";
+
+		arquivo.close();
+	}
+	else
+	{
+		qDebug() << "Erro ao abrir arquivo!";
 	}
 }
 
