@@ -5,6 +5,7 @@
 #include <QObject>
 #include <QMutex>
 #include <QWaitCondition>
+#include <ctime>
 
 #include "ui_QtGui.h"
 
@@ -61,7 +62,7 @@ private slots:
     void on_grab_btn_clicked();
 	void on_stop_grab_btn_clicked();
 
-    void update_progress_tab(int, int, int, std::string);
+    void update_progress_tab(int, int, time_t, std::string);
     void update_displayed_image();
 
     void arduino_connect_serial_port();
@@ -72,7 +73,7 @@ private slots:
     void on_operation_end_enable_all();
 
     void escreverMensagem(const QString&, const QString&);
-
+    void logWriteStart();
 
 private:
     Ui::QtGuiClass ui;

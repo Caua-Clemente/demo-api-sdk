@@ -240,8 +240,12 @@ void QtGui::on_device_select_changed(int index) {
 	ui.grabBtn->setDisabled(false);
 	//ui.stopGrabBtn->setDisabled(false);
 
+	//garantimos que "tomografia" e "imagecombobox" estejam selecionados por padrão
+	ui.acquisitionModeInput->setCurrentIndex(0);
+	ui.imageQuantityStackedWidget->setCurrentIndex(0);
+
 	//e definimos alguns valores padrões para o dispositivo
-	if (this->xcommand.SetPara(XPARA_BINNING_MODE, "Normal") != 1)
+	if (this->xcommand.SetPara(XPARA_BINNING_MODE, 0) != 1)
 	{
 		QMessageBox::critical(this, "Erro", "Falha ao definir o modo de binning");
 	}
@@ -409,7 +413,7 @@ void QtGui::on_file_prefix_input_changed() {
 }
 
 void QtGui::on_choose_file_path_btn_clicked() {
-	this->path_name = QFileDialog::getSaveFileName(this, "Save file", "../images", "DAT files (*.dat);;All files (*.*)");
+	this->path_name = QFileDialog::getExistingDirectory(this, "Escolha um diretório", "C:/");
 	ui.filePathInput->setText(this->path_name);
 }
 
@@ -425,8 +429,6 @@ void QtGui::on_grab_btn_clicked() {
 	}
 	
 	//precisa checar também os parametros direto pelo dispositivo:
-
-
 	string acquisition_mode = ui.acquisitionModeInput->currentText().toStdString();
 	string mechanical_mode = ui.mechanicalModeInput->currentText().toStdString();
 	int interval_time = ui.intervalTimeInput->text().toInt();
@@ -438,17 +440,22 @@ void QtGui::on_grab_btn_clicked() {
 		image_quantity = ui.imageQuantityInput->text().toInt();
 	}
 
-	escreverMensagem("log.txt", "Programa iniciado");
-
 	QMessageBox::information(this, "Dispositivo pronto", "clique no bot\u00E3o para iniciar a opera\u00E7\u00E3o");
-
-	//desabilitando todos os inputs exceto o parar. Sempre que o grab parar seja lá qual o motivo, a função para habilitar os inputs deve ser chamada
+	//desabilitando todos os inputs exceto o parar. 
+	//Sempre que o grab parar seja lá qual o motivo, a função para habilitar os inputs deve ser chamada
 	on_operation_start_disable_all();
-
 	this->stop_bnt_pressed == false;
+	time_t starting_time = time(nullptr);
+
+	logWriteStart();
 	for (int i = 0; i < image_quantity && this->stop_bnt_pressed == false; i++) {
 		sync.lock();
-		update_progress_tab(i, image_quantity, total_approximate_time, file_prefix);
+		update_progress_tab(i, image_quantity, starting_time, file_prefix);
+		
+		QString inicioCicloX =
+			QDateTime::currentDateTime().toString("[yyyy/MM/dd hh:mm:ss]") + 
+			" - Iniciando ciclo " + QString::number(i + 1) + "\n";
+		escreverMensagem("log.txt", inicioCicloX);
 
 		this->set_is_save(true);
 		this->set_frame_count(0);
@@ -461,33 +468,42 @@ void QtGui::on_grab_btn_clicked() {
 			on_operation_end_enable_all();
 			return;
 		}
+
+		QString grabXStart =
+			QDateTime::currentDateTime().toString("[yyyy/MM/dd hh:mm:ss]") + 
+			" - Capturando " + QString::fromStdString(file_prefix) + QString::number(i + 1) + ".dat" + "\n";
+		escreverMensagem("log.txt", grabXStart);
+
 		this->xacquisition.Grab(1);
 		this->xevent.Wait();
 		this->ximg_handle.CloseFile();
-		QtDebugMsg("imagem salva");
+
+		QString grabXFinish =
+			QDateTime::currentDateTime().toString("[yyyy/MM/dd hh:mm:ss]") +
+			" - " + QString::fromStdString(file_prefix) + QString::number(i + 1) + ".dat capturado" + "\n";
+		escreverMensagem("log.txt", grabXFinish);
+
 
 		if (acquisition_mode == "Tomografia") {
-			/*if (mechanical_mode == "Arduino") {
-			}
-			else {
-			}*/
-
-			QString iteracao;
 			arduino_send_command("1");
-			escreverMensagem("log.txt", "iteracao comando 1");
-			//QMessageBox::information(this, "operacao", "comando 1 enviado.");
 			Sleep(1000);
 			float angle = 360.0f / (ui.imageQuantityComboBox->currentText().toFloat());
 			arduino_send_command(std::to_string(angle));
-			escreverMensagem("log.txt", "iteracao comando 2");
-			//QMessageBox::information(this, "angulo enviado:", "comando 2 enviado");
 		}
 		sync.unlock();
+		QString fimCicloX =
+			QDateTime::currentDateTime().toString("[yyyy/MM/dd hh:mm:ss]") +
+			" - Finalizando ciclo " + QString::number(i + 1) + "\n";
+		escreverMensagem("log.txt", fimCicloX);
 		Sleep(interval_time);
 	}
 
-	update_progress_tab(image_quantity, image_quantity, total_approximate_time, file_prefix);
+	QString fimOperacao =
+		QDateTime::currentDateTime().toString("[yyyy/MM/dd hh:mm:ss]") +
+		" - Finalizando operacao" + "\n";
+	escreverMensagem("log.txt", fimOperacao);
 
+	update_progress_tab(image_quantity, image_quantity, starting_time, file_prefix);
 	QMessageBox::information(this, "Aquisi\u00E7\u00E3o", "Opera\u00E7\u00E3o completa.");
 	on_operation_end_enable_all();
 }
@@ -501,6 +517,11 @@ void QtGui::arduino_send_command(const std::string& comando) {
 	serial->write((comando + "\n").c_str());
 	serial->waitForBytesWritten(1000);
 	serial->flush();
+
+	QString arduinoComando =
+		QDateTime::currentDateTime().toString("[yyyy/MM/dd hh:mm:ss]") +
+		" - Enviando comando '" + QString::fromStdString(comando) + "' ao arduino " + "\n";
+	escreverMensagem("log.txt", arduinoComando);
 }
 
 void QtGui::arduino_serial_read() {
@@ -568,66 +589,81 @@ void QtGui::on_stop_grab_btn_clicked() {
 	on_operation_end_enable_all();
 }
 
-void QtGui::update_progress_tab(int index, int total_images, int total_approximate_time, string file_prefix) {
-	QString processing_string = QString("Processando: %1%2.dat")
+void QtGui::update_progress_tab(int index, int total_images, time_t starting_time, string file_prefix) {
+	
+	//EXIBINDO
+	QString current_displayed_string = QString("Exibindo: %1%2.dat")
 		.arg(QString::fromStdString(file_prefix))
 		.arg(index, 1, 10, QChar('0'));
+	if (index == 0) {
+		current_displayed_string = QString("Exibindo: ---");
+	}
+	ui.currentDisplayedImageLabel->setText(current_displayed_string);
+
+	//PROCESSANDO
+	QString processing_string = QString("Processando: %1%2.dat")
+		.arg(QString::fromStdString(file_prefix))
+		.arg(index+1, 1, 10, QChar('0'));
+	if (index == total_images) {
+		processing_string = QString("Processando: ---");
+	}
 	ui.currentProcessingImageLabel->setText(processing_string);
 
+	//PROGRESSO
 	int progress_percent = (index * 100) / total_images;
-	QString progress_string = QString("Progresso: 1%/2% (3%%)")
-		.arg(index+1, 1, 10, QChar('0'))
+	QString progress_string = QString("Progresso: %1/%2 (%3%)")
+		.arg(index, 1, 10, QChar('0'))
 		.arg(total_images, 1, 10, QChar('0'))
 		.arg(progress_percent, 1, 10, QChar('0'));
 	ui.currentProgressLabel->setText(progress_string);
 
+	//ELAPSED TIME
+	time_t elapsed_time_t = time(nullptr) - starting_time;
+	int el_hh = elapsed_time_t / 3600;
+	int el_mm = (elapsed_time_t % 3600) / 60;
+	int el_ss = elapsed_time_t % 60;
+	QString elapsed_time_string = QString("Tempo decorrido: %1:%2:%3")
+		.arg(el_hh, 3, 10, QChar('0'))
+		.arg(el_mm, 2, 10, QChar('0'))
+		.arg(el_ss, 2, 10, QChar('0'));
+	ui.elapsedTimeLabel->setText(elapsed_time_string);
+
+	//REMAINING TIME
 	int integration_time = ui.integrationTimeInput->text().toInt();
 	int interval_time = ui.intervalTimeInput->text().toInt();
-	int approximate_elapsed_time = index * 
+	int approximate_remaining_time = (total_images - index) *
 		(1 + (integration_time * 1.0) / 1000000 + (interval_time * 1.0) / 1000);
-	
-	int remaining_time = total_approximate_time - approximate_elapsed_time;
-	int rt_hh = remaining_time/ 3600;
-	int rt_mm = (remaining_time % 3600) / 60;
-	int rt_ss = remaining_time % 60;
-
+	int rt_hh = approximate_remaining_time / 3600;
+	int rt_mm = (approximate_remaining_time % 3600) / 60;
+	int rt_ss = approximate_remaining_time % 60;
 	QString remaining_time_string = QString("Tempo restante: %1:%2:%3")
 		.arg(rt_hh, 3, 10, QChar('0'))
 		.arg(rt_mm, 2, 10, QChar('0'))
 		.arg(rt_ss, 2, 10, QChar('0'));
 	ui.remainingTimeLabel->setText(remaining_time_string);
 
+	//STATUS
 	QString status_string = QString("Status: Em opera\u00E7\u00E3o");
+	if (index == total_images) {
+		status_string = QString("Status: Conclu\u00eddo");
+	}
+	ui.currentStatusLabel->setText(status_string);
 
-	QString current_displayed_string = QString("Exibindo: %1%2.dat")
-		.arg(QString::fromStdString(file_prefix))
-		.arg(index, 1, 10, QChar('0'));
-	
-	// Progress bar
+	//PROGRESS BAR
 	ui.progressBar->setMaximum(total_images);
 	ui.progressBar->setValue(index);
-
-	QString elapsed_time_string = QString("Tempo decorrido: ---");
-
 	if (index == 0) {
-		current_displayed_string = QString("Exibindo: ---");
 		ui.progressBar->setRange(0, total_images);
 	}
-	else if (index < total_images) {
+
+	//IMAGE
+	if (index != 0) {
 		update_displayed_image();
 	}
-	else {
-		status_string = QString("Status: Conclu\u00eddo");
-		ui.currentProcessingImageLabel->setText("Processando: ---");
-		ui.remainingTimeLabel->setText("Tempo restante: ---");
-		update_displayed_image();
-	}
-	
+
+	//STOP BUTTON
 	if(this->stop_bnt_pressed == true)
 		status_string = QString("Status: Parado");
-
-	ui.currentStatusLabel->setText(status_string);
-	ui.currentDisplayedImageLabel->setText(current_displayed_string);
 }
 
 void QtGui::update_displayed_image() {
@@ -687,6 +723,8 @@ void QtGui::update_displayed_image() {
 
 	file.close();
 }
+
+
 
 QString QtGui::get_path_name() {
 	return this->path_name;
@@ -773,6 +811,59 @@ void QtGui::escreverMensagem(const QString& caminhoArquivo, const QString& mensa
 	{
 		qDebug() << "Erro ao abrir arquivo!";
 	}
+}
+
+void QtGui::logWriteStart(){
+	QString acquisition_mode = ui.acquisitionModeInput->currentText();
+
+	QString mechanical_mode = ui.mechanicalModeInput->currentText();
+
+	uint64_t binning;
+	if (this->xcommand.GetPara(XPARA_BINNING_MODE, binning) != 1)
+	{
+	}
+	QString binningQS = (binning == 0 ? "Normal" : "2x2");
+
+	uint64_t gain;
+	if (this->xcommand.GetPara(XPARA_GAIN_RANGE, gain) != 1)
+	{
+	}
+	QString gainQS = (gain == 0 ? "Low" : "High");
+
+	uint64_t integration;
+	if (this->xcommand.GetPara(XPARA_FRAME_PERIOD, integration) != 1)
+	{
+	}
+	QString integrationQs = QString::number(integration);
+
+	QString interval_time = ui.intervalTimeInput->text();
+
+	QString image_quantity = 0;
+	if (acquisition_mode == "Tomografia") {
+		image_quantity = ui.imageQuantityComboBox->currentText();
+	}
+	else {
+		image_quantity = ui.imageQuantityInput->text();
+	}
+
+	QString prefix = ui.filePrefixInput->text();
+	QString path = ui.filePathInput->text();
+
+	QString logText =
+		"Aquisicao: " + acquisition_mode + "\n" +
+		"Mecanismo: " + mechanical_mode + "\n" +
+		"Binning: " + binningQS + "\n" +
+		"Ganho: " + gainQS + "\n" +
+		"Integracao: " + integrationQs + "\n" +
+		"Intervalo: " + interval_time + "\n" +
+		"Imagens: " + image_quantity + "\n" +
+		"Prefixo: " + prefix + "\n" +
+		"Diretorio: " + path + "\n" +
+		"Iniciando as: " +
+		QDateTime::currentDateTime().toString("[yyyy/MM/dd hh:mm:ss]");
+
+	QString logPath = path + "log.txt";
+	escreverMensagem(logPath, logText);
 }
 
 void QtGui::set_frame_count(uint32_t frame_count) {

@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1000</width>
+    <width>1017</width>
     <height>666</height>
    </rect>
   </property>
@@ -817,6 +817,9 @@ QPushButton:disabled {
                 <height>16777215</height>
                </size>
               </property>
+              <property name="currentIndex">
+               <number>0</number>
+              </property>
               <property name="placeholderText">
                <string/>
               </property>
@@ -1231,7 +1234,7 @@ QPushButton:disabled {
                </size>
               </property>
               <property name="currentIndex">
-               <number>1</number>
+               <number>0</number>
               </property>
               <widget class="QWidget" name="page_1">
                <widget class="QComboBox" name="imageQuantityComboBox">
@@ -2207,13 +2210,37 @@ QPushButton:disabled {
              <layout class="QVBoxLayout" name="verticalLayout_30">
               <item>
                <widget class="QLabel" name="currentDisplayedImageLabel">
+                <property name="maximumSize">
+                 <size>
+                  <width>190</width>
+                  <height>16777215</height>
+                 </size>
+                </property>
+                <property name="layoutDirection">
+                 <enum>Qt::LayoutDirection::LeftToRight</enum>
+                </property>
+                <property name="autoFillBackground">
+                 <bool>false</bool>
+                </property>
                 <property name="text">
                  <string>Exibindo: ---</string>
+                </property>
+                <property name="textFormat">
+                 <enum>Qt::TextFormat::AutoText</enum>
+                </property>
+                <property name="wordWrap">
+                 <bool>false</bool>
                 </property>
                </widget>
               </item>
               <item>
                <widget class="QLabel" name="currentProcessingImageLabel">
+                <property name="maximumSize">
+                 <size>
+                  <width>190</width>
+                  <height>16777215</height>
+                 </size>
+                </property>
                 <property name="text">
                  <string>Processando: ---</string>
                 </property>
@@ -2221,6 +2248,12 @@ QPushButton:disabled {
               </item>
               <item>
                <widget class="QLabel" name="currentProgressLabel">
+                <property name="maximumSize">
+                 <size>
+                  <width>190</width>
+                  <height>16777215</height>
+                 </size>
+                </property>
                 <property name="text">
                  <string>Progresso: ---</string>
                 </property>
@@ -2232,6 +2265,9 @@ QPushButton:disabled {
              <spacer name="horizontalSpacer_17">
               <property name="orientation">
                <enum>Qt::Orientation::Horizontal</enum>
+              </property>
+              <property name="sizeType">
+               <enum>QSizePolicy::Policy::Fixed</enum>
               </property>
               <property name="sizeHint" stdset="0">
                <size>
@@ -2245,6 +2281,12 @@ QPushButton:disabled {
              <layout class="QVBoxLayout" name="verticalLayout_31">
               <item>
                <widget class="QLabel" name="elapsedTimeLabel">
+                <property name="maximumSize">
+                 <size>
+                  <width>190</width>
+                  <height>16777215</height>
+                 </size>
+                </property>
                 <property name="text">
                  <string>Tempo decorrido: ---</string>
                 </property>
@@ -2252,6 +2294,12 @@ QPushButton:disabled {
               </item>
               <item>
                <widget class="QLabel" name="remainingTimeLabel">
+                <property name="maximumSize">
+                 <size>
+                  <width>190</width>
+                  <height>16777215</height>
+                 </size>
+                </property>
                 <property name="text">
                  <string>Tempo restante: ---</string>
                 </property>
@@ -2259,6 +2307,12 @@ QPushButton:disabled {
               </item>
               <item>
                <widget class="QLabel" name="currentStatusLabel">
+                <property name="maximumSize">
+                 <size>
+                  <width>190</width>
+                  <height>16777215</height>
+                 </size>
+                </property>
                 <property name="text">
                  <string>Status: ---</string>
                 </property>
