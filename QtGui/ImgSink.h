@@ -6,14 +6,14 @@
 #include <iostream>
 
 
-class QtGui;
+class DetectorWorker;
 
 //Uma classe para manipular eventos de imagem
 class ImgSink : public IXImgSink
 {
 
 public:
-	explicit ImgSink(QtGui* parent);
+	explicit ImgSink(DetectorWorker* parent);
 
 	// Manipulação de erro
 	// Parâmetros err_id: ID do error, err_msg_: Mensagem de erro
@@ -33,5 +33,5 @@ public:
 	void OnFrameComplete() override;
 
 private:
-	QtGui* parent_;
+	DetectorWorker* parent_;
 };

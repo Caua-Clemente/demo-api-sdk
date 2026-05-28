@@ -123,6 +123,7 @@
       <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">../include/</AdditionalIncludeDirectories>
       <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Release|x64'">../include/</AdditionalIncludeDirectories>
     </ClCompile>
+    <ClCompile Include="DetectorWorker.cpp" />
     <ClCompile Include="Utils.cpp" />
     <QtRcc Include="QtGui.qrc" />
     <QtUic Include="QtGui.ui" />
@@ -139,6 +140,7 @@
     <ClInclude Include="..\Demo\stdafx.h" />
     <ClInclude Include="..\Demo\targetver.h" />
     <ClInclude Include="CmdSink.h" />
+    <QtMoc Include="DetectorWorker.h" />
     <ClInclude Include="ImgSink.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="Utils.h" />

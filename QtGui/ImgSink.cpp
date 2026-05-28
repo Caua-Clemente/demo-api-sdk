@@ -1,13 +1,14 @@
 #include "ImgSink.h"
 #include <iostream>
-#include "QtGui.h"
+//#include "QtGui.h"
+#include "DetectorWorker.h"
 
-ImgSink::ImgSink(QtGui* parent) : parent_(parent) {}
+ImgSink::ImgSink(DetectorWorker* parent) : parent_(parent) {}
 
 void ImgSink::OnXError(uint32_t err_id, const char* err_msg_)
 {
 	//std::cout << "Error ID: " << err_id << " Error Message: " << err_msg_ << std::endl;
-	QMessageBox::critical(parent_, "Erro " + err_id, err_msg_);
+	//QMessageBox::critical(parent_, "Erro " + err_id, err_msg_);
 }
 
 void ImgSink::OnXEvent(uint32_t event_id, uint32_t data)
