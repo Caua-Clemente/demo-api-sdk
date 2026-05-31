@@ -400,3 +400,7 @@ XEvent* DetectorWorker::get_xevent()
 	return &this->xevent;
 }
 
+DetectorWorker::~DetectorWorker() {
+	delete cmd_sink;
+	delete img_sink;
+}

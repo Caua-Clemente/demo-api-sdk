@@ -315,7 +315,7 @@ void QtGui::on_choose_file_path_btn_clicked() {
 	ui.filePathInput->setText(this->file_path);
 }
 
-//TODO
+//OK?
 void QtGui::on_grab_btn_clicked() {
 	
 	string file_path = ui.filePathInput->text().toStdString();
@@ -497,8 +497,8 @@ QString file_path, QString file_prefix)
 	}
 
 	//STOP BUTTON
-	if(this->stop_bnt_pressed == true)
-		status_string = QString("Status: Parado");
+	/*if(this->stop_bnt_pressed == true)
+		status_string = QString("Status: Parado");*/
 }
 
 //TODO

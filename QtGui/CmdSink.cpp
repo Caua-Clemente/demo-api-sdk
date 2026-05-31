@@ -1,8 +1,8 @@
 #include "CmdSink.h"
 #include <iostream>
-#include "QtGui.h"
+#include "DetectorWorker.h"
 
-CmdSink::CmdSink(QtGui* parent) : parent_(parent) {}
+CmdSink::CmdSink(DetectorWorker* parent) : parent_(parent) {}
 
 void CmdSink::OnXError(uint32_t err_id, const char* err_msg_) 
 {

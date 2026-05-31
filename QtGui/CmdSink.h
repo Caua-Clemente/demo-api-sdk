@@ -4,13 +4,13 @@
 #include <QString>
 #include <QMessageBox>
 
-class QtGui;
+class DetectorWorker;
 
 //Uma classe para manipular eventos de comando do dispositivo
 class CmdSink : public IXCmdSink
 {
 public:
-	explicit CmdSink(QtGui* parent);
+	explicit CmdSink(DetectorWorker* parent);
 
 	// Manipulação de erro
 	// Parâmetros err_id: ID do error, err_msg_: Mensagem de erro
@@ -22,6 +22,6 @@ public:
 	void OnXEvent(uint32_t event_id, XHealthPara data) override;
 
 private:
-	QtGui* parent_;
+	DetectorWorker* parent_;
 };
 

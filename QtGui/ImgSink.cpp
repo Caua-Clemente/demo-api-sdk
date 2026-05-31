@@ -49,12 +49,15 @@ void ImgSink::OnFrameComplete()
 
 	if (is_save)
 	{
-		std::string txt_name = save_file_name.replace(save_file_name.find(".dat"), 4, ".txt");
+		//std::string txt_name = save_file_name.replace(save_file_name.find(".dat"), 4, ".txt");
+		std::string txt_name = save_file_name;
+		txt_name.replace(txt_name.find(".dat"), 4, ".txt"); //pra evitar problemas de dat virar txt como antes
 
 		ximg_handle->SaveHeaderFile(txt_name.c_str());
 		ximg_handle->CloseFile();
 
-		is_save = 0;
+		this->parent_->set_is_save(false);
+		is_save = 0; //linha possivelmente redundante
 	}
 
 	frame_complete->Set();
