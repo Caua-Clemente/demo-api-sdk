@@ -55,6 +55,8 @@ DetectorWorker::DetectorWorker(QObject* parent)
 	xfactory(),
 	xcommand(&xfactory),
 	xacquisition(&xfactory),
+	cmd_sink(new CmdSink(this)),
+	img_sink(new ImgSink(this)),
 	frame_count(0),
 	lost_frame_count(0),
 	is_save(false)
@@ -63,11 +65,18 @@ DetectorWorker::DetectorWorker(QObject* parent)
 	
 }
 
-//OK
-void DetectorWorker::w_connect_detector(char* ip) {
+void DetectorWorker::w_recebido() {
+	//emit retornando();
+}
 
+//OK
+void DetectorWorker::w_connect_detector(QString ip) {
+
+	w_escrever_mensagem_t("log.txt", "Entrou na thread secundaria");
 	// Create objects
-	this->xsystem = new XSystem(ip);
+	QByteArray ipBytes = ip.toLocal8Bit();
+	this->xsystem = new XSystem(ipBytes.constData());
+
 	this->xsystem->RegisterEventSink(this->cmd_sink);
 
 	this->xcommand.RegisterEventSink(this->cmd_sink);
@@ -97,7 +106,6 @@ void DetectorWorker::w_connect_detector(char* ip) {
 
 //OK
 void DetectorWorker::w_device_select(int device_index) {
-
 	if (this->xdevice_ptr != nullptr) {
 		this->xcommand.Close();
 		this->xacquisition.Close();
@@ -212,23 +220,21 @@ void DetectorWorker::w_integration_time_change(int integration_time) {
 
 void DetectorWorker::w_grab_start_operation(
 QString acquisition_mode, QString mechanical_mode, int interval_time, int image_quantity,
-QString file_path, QString file_prefix, int total_approximate_time)
+QString file_path, QString file_prefix, time_t total_time)
 {
 	this->stop_bnt_pressed == false;
 	time_t starting_time = time(nullptr);
 	float angle = 360.0f / float(image_quantity);
+	time_t remaining_time = total_time;
+	w_escrever_inicio_log("log.txt", acquisition_mode, mechanical_mode, interval_time, image_quantity, file_path, file_prefix);
 
-	w_escrever_inicio_log(acquisition_mode, mechanical_mode, interval_time, image_quantity,
-	file_path, file_prefix, total_approximate_time);
 
-
+	//INICIO OPERACAO
 	for (int i = 0; i < image_quantity && this->stop_bnt_pressed == false; i++) {
-		emit update_tab(i, image_quantity, starting_time, file_path, file_prefix);
+		emit update_tab(i, image_quantity, starting_time, remaining_time, file_path, file_prefix);
 
-		QString inicioCicloX =
-			QDateTime::currentDateTime().toString("[yyyy/MM/dd hh:mm:ss]") +
-			" - Iniciando ciclo " + QString::number(i + 1) + "\n";
-		w_escrever_mensagem("log.txt", inicioCicloX);
+		QString inicioCicloX = " - Iniciando ciclo " + QString::number(i + 1);
+		w_escrever_mensagem_t("log.txt", inicioCicloX);
 
 		this->set_is_save(true);
 		this->set_frame_count(0);
@@ -242,38 +248,31 @@ QString file_path, QString file_prefix, int total_approximate_time)
 			return;
 		}
 
-		QString grabXStart =
-			QDateTime::currentDateTime().toString("[yyyy/MM/dd hh:mm:ss]") +
-			" - Capturando " + file_prefix + QString::number(i + 1) + ".dat" + "\n";
-		w_escrever_mensagem("log.txt", grabXStart);
-
 		this->xacquisition.Grab(1);
 		this->xevent.Wait();
 		this->ximg_handle.CloseFile();
 
-		QString grabXFinish =
-			QDateTime::currentDateTime().toString("[yyyy/MM/dd hh:mm:ss]") +
-			" - " + file_prefix + QString::number(i + 1) + ".dat capturado" + "\n";
-		w_escrever_mensagem("log.txt", grabXFinish);
+		QString imgCapturadoX = " - " + file_prefix + QString::number(i + 1) + ".dat capturado";
+		w_escrever_mensagem_t("log.txt", imgCapturadoX);
 
 
 		if (acquisition_mode == "Tomografia") {
 			w_arduino_send_command("1");
+			Sleep(250);
 			w_arduino_send_command(std::to_string(angle));
+			w_escrever_mensagem_t("log.txt", ("Rotacionando a amostra em " + QString::number(angle) + " graus"));
 		}
-		QString fimCicloX =
-			QDateTime::currentDateTime().toString("[yyyy/MM/dd hh:mm:ss]") +
-			" - Finalizando ciclo " + QString::number(i + 1) + "\n";
-		w_escrever_mensagem("log.txt", fimCicloX);
+		QString fimCicloX = " - Finalizando ciclo " + QString::number(i + 1) + "\n";
+		w_escrever_mensagem_t("log.txt", fimCicloX);
 		Sleep(interval_time);
+
+		remaining_time = w_calcular_tempo_restante(image_quantity, i + 1, starting_time);
 	}
 
-	QString fimOperacao =
-		QDateTime::currentDateTime().toString("[yyyy/MM/dd hh:mm:ss]") +
-		" - Finalizando operacao" + "\n";
-	w_escrever_mensagem("log.txt", fimOperacao);
+	QString fimOperacao = " - Finalizando operacao " + file_prefix + ".dat \n";
+	w_escrever_mensagem_t("log.txt", fimOperacao);
 
-	emit update_tab(image_quantity, image_quantity, starting_time, file_path, file_prefix);
+	emit update_tab(image_quantity, image_quantity, starting_time, remaining_time, file_path, file_prefix);
 	
 	emit message_box_info("Aquisi\u00E7\u00E3o", "Opera\u00E7\u00E3o completa.");
 	emit enable_all();
@@ -297,7 +296,7 @@ void DetectorWorker::w_arduino_send_command(const std::string& comando) {
 	QString arduinoComando =
 		QDateTime::currentDateTime().toString("[yyyy/MM/dd hh:mm:ss]") +
 		" - Enviando comando '" + QString::fromStdString(comando) + "' ao arduino " + "\n";
-	w_escrever_mensagem("log.txt", arduinoComando);
+	w_escrever_mensagem_t("log.txt", arduinoComando);
 }
 
 
@@ -318,11 +317,21 @@ void DetectorWorker::w_escrever_mensagem(const QString& caminhoArquivo, const QS
 	}
 }
 
+void DetectorWorker::w_escrever_mensagem_t(const QString& caminhoArquivo, const QString& mensagem) {
+	
+	QString mensagemFormatada =
+		QDateTime::currentDateTime().toString("[yyyy/MM/dd hh:mm:ss]") + mensagem;
+	w_escrever_mensagem(caminhoArquivo, mensagemFormatada);
+}
+
+
 //OK
 void DetectorWorker::w_escrever_inicio_log(
-QString acquisition_mode, QString mechanical_mode, int interval_time, int image_quantity,
-QString file_path, QString file_prefix, int total_approximate_time)
+const QString& caminho_arquivo, QString acquisition_mode, QString mechanical_mode, int interval_time,
+int image_quantity, QString file_path, QString file_prefix)
 {
+	w_escrever_mensagem_t(caminho_arquivo, "Iniciando operacao " + file_prefix + ".dat");
+
 	uint64_t binning;
 	if (this->xcommand.GetPara(XPARA_BINNING_MODE, binning) != 1)
 	{
@@ -342,22 +351,40 @@ QString file_path, QString file_prefix, int total_approximate_time)
 	QString integration_time = QString::number(integration);
 
 	QString logText =
-		"Aquisicao: " + acquisition_mode + "\n" +
-		"Mecanismo: " + mechanical_mode + "\n" +
-		"Binning: " + binning_mode + "\n" +
-		"Ganho: " + gain_mode + "\n" +
-		"Integracao: " + integration_time + "\n" +
-		"Intervalo: " + QString::number(interval_time) + "\n" +
-		"Imagens: " + QString::number(image_quantity) + "\n" +
+		"Parametros da Operacao:" "\n"
+		"Modo de Aquisicao: " + acquisition_mode + "\n" +
+		(acquisition_mode == "Tomografia" ? 
+			("Mecanismo de Rotacao: " + mechanical_mode + "\n") : ("")) +
+		"Modo de Binning: " + binning_mode + "\n" +
+		"Modo de Ganho: " + gain_mode + "\n" +
+		"Tempo de Integracao (us): " + integration_time + "\n" +
+		"Tempo de Intervalo (ms): " + QString::number(interval_time) + "\n" +
+		"Quantidade de Imagens: " + QString::number(image_quantity) + "\n" +
 		"Prefixo: " + file_prefix + "\n" +
-		"Diretorio: " + file_path + "\n" +
-		"Iniciando as: " +
-		QDateTime::currentDateTime().toString("[yyyy/MM/dd hh:mm:ss]") + "\n";
+		"Diretorio: " + file_path + "\n";
 
-	QString logPath = file_path + "log.txt";
-	w_escrever_mensagem(logPath, logText);
+	w_escrever_mensagem(caminho_arquivo, logText);
 }
 
+
+time_t DetectorWorker::w_calcular_tempo_restante(int img_total, int img_processadas, time_t starting_time) {	
+	time_t elapsed_time_t = time(nullptr) - starting_time;
+	time_t total_time_t = ((elapsed_time_t * img_total) / img_processadas);
+	time_t remaining_time_t = total_time_t - elapsed_time_t;
+
+	return remaining_time_t;
+}
+
+time_t DetectorWorker::w_calcular_tempo_total_esperado(int img_total, int integration_time, int interval_time, QString acquisition_mode) {
+	
+	float mechanical_signal_time = 0;
+	if (acquisition_mode == "Tomografia")
+		mechanical_signal_time = 0.25;
+
+	time_t approximate_time = img_total * ((integration_time * 3.0) / 1000000 + (interval_time * 1.0) / 1000 + mechanical_signal_time);
+		return approximate_time;
+
+}
 
 void DetectorWorker::set_frame_count(uint32_t frame_count) {
 	this->frame_count = frame_count;

@@ -1,6 +1,5 @@
 #include "ImgSink.h"
 #include <iostream>
-//#include "QtGui.h"
 #include "DetectorWorker.h"
 
 ImgSink::ImgSink(DetectorWorker* parent) : parent_(parent) {}
@@ -40,6 +39,9 @@ void ImgSink::OnFrameReady(XImage* image_)
 
 void ImgSink::OnFrameComplete()
 {
+	//verificando quais passos foram executados
+	//this->parent_->w_escrever_mensagem("log.txt", "entrou no on frame complete\n");
+	
 	bool is_save = this->parent_->get_is_save();
 	XImageHandler* ximg_handle = this->parent_->get_ximage_handler();
 	std::string save_file_name = this->parent_->get_save_file_name();
@@ -49,16 +51,17 @@ void ImgSink::OnFrameComplete()
 
 	if (is_save)
 	{
-		//std::string txt_name = save_file_name.replace(save_file_name.find(".dat"), 4, ".txt");
-		std::string txt_name = save_file_name;
-		txt_name.replace(txt_name.find(".dat"), 4, ".txt"); //pra evitar problemas de dat virar txt como antes
+		//this->parent_->w_escrever_mensagem("log.txt", "entrou no 'if (is_save)'\n");
 
+		std::string txt_name = save_file_name.replace(save_file_name.find(".dat"), 4, ".txt");
+		
 		ximg_handle->SaveHeaderFile(txt_name.c_str());
 		ximg_handle->CloseFile();
 
 		this->parent_->set_is_save(false);
-		is_save = 0; //linha possivelmente redundante
+		is_save = 0;
 	}
 
 	frame_complete->Set();
+	//this->parent_->w_escrever_mensagem("log.txt", "fim\n");
 }

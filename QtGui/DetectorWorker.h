@@ -5,9 +5,11 @@
 
 #include "CmdSink.h"
 #include "ImgSink.h"
+
 #include "ximage_handler.h"
 #include "xsystem.h"
 #include "xdevice.h"
+
 #include "xcommand.h"
 #include "xacquisition.h"
 #include "xframe_transfer.h"
@@ -18,6 +20,8 @@ class DetectorWorker : public QObject
 	Q_OBJECT
 public:
     explicit DetectorWorker(QObject* parent = nullptr);
+    ~DetectorWorker();
+
     uint32_t get_frame_count();
     uint32_t get_lost_frame_count();
     bool get_is_save();
@@ -29,28 +33,34 @@ public:
     void set_is_save(bool);
     void set_save_file_name(std::string);
 
+    void w_escrever_mensagem(const QString& caminhoArquivo, const QString& mensagem);
+    void w_escrever_mensagem_t(const QString& caminhoArquivo, const QString& mensagem);
+
 
 private slots:
-    void w_connect_detector(char*);
+    void w_connect_detector(QString ip);
     void w_device_select(int index);
     void w_arduino_connect_serial_port();
     void w_binning_mode_change(int binning_mode);
     void w_gain_mode_change(int gain_mode);
     void w_integration_time_change(int integration_time);
-
+    void w_recebido();
 
     void w_grab_start_operation(
         QString acquisition_mode, QString mechanical_mode, int interval_time, int image_quantity,
-        QString file_path, QString file_prefix, int total_approximate_time);
+        QString file_path, QString file_prefix, time_t total_time);
 
 
-    void w_escrever_mensagem(const QString& caminhoArquivo, const QString& mensagem);
     void w_escrever_inicio_log(
-        QString acquisition_mode, QString mechanical_mode, int interval_time, int image_quantity,
-        QString file_path, QString file_prefix, int total_approximate_time);
+        const QString& caminho_arquivo, QString acquisition_mode, QString mechanical_mode, int interval_time, int image_quantity,
+        QString file_path, QString file_prefix);
         
     bool w_arduino_check_open();
     void w_arduino_send_command(const std::string& comando);
+
+    time_t w_calcular_tempo_restante(int img_total, int img_processadas, time_t starting_time);
+    time_t w_calcular_tempo_total_esperado(int img_total, int integration_time, int interval_time, QString acquisition_mode);
+
 
 signals:
     void message_box_error(QString title, QString message);
@@ -66,8 +76,9 @@ signals:
 
     void enable_all();
     void disable_all();
-    void update_tab(int index, int total_images, time_t starting_time, QString file_path, QString file_prefix);
+    void update_tab(int index, int total_images, time_t starting_time, time_t remaining_time, QString file_path, QString file_prefix);
 
+    void retornando();
 
 private:
     CmdSink* cmd_sink = nullptr;

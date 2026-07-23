@@ -42,19 +42,22 @@ private slots:
     void on_image_quantity_input_changed();
     void on_file_prefix_input_changed();
 
-    int  get_total_approximate_time();
+    time_t  get_total_approximate_time();
     void set_total_approximate_time();
 
     void on_choose_file_path_btn_clicked();
     void on_grab_btn_clicked();
 	void on_stop_grab_btn_clicked();
 
-    void update_progress_tab(int index, int total_images, time_t starting_time,
+    void update_progress_tab(int index, int total_images, time_t starting_time, time_t remaining_time,
         QString file_path, QString file_prefix);
     void update_displayed_image(QString image_path);
 
     void on_operation_start_disable_all();
     void on_operation_end_enable_all();
+
+    void testeF();
+    void voltando();
 
 private:
     Ui::QtGuiClass ui;

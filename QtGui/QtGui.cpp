@@ -39,9 +39,29 @@ QtGui::QtGui(QWidget *parent)
 	worker = new DetectorWorker();
 	worker->moveToThread(workerThread);
 
+
+	//teste
+	connect(ui.hostIpInput, SIGNAL(editingFinished()), this, SLOT(testeF()));
+	connect(worker, &DetectorWorker::retornando, this, &QtGui::voltando);
+
 	//OK
 	connect(ui.hostIpConnectBtn, SIGNAL(clicked()), this, SLOT(on_connect_btn_clicked()));
 	connect(worker, &DetectorWorker::device_conection_success, this, &QtGui::on_device_connect_signal);
+
+	connect(worker, &DetectorWorker::message_box_error, this, [this](const QString& titulo, const QString& mensagem)
+		{
+			QMessageBox::critical(this, titulo, mensagem);
+		});
+
+	connect(worker, &DetectorWorker::message_box_warning, this, [this](const QString& titulo, const QString& mensagem)
+		{
+			QMessageBox::warning(this, titulo, mensagem);
+		});
+
+	connect(worker, &DetectorWorker::message_box_info, this, [this](const QString& titulo, const QString& mensagem)
+		{
+			QMessageBox::information(this, titulo, mensagem);
+		});
 
 	//OK
 	connect(ui.deviceSelect, SIGNAL(currentIndexChanged(int)), this, SLOT(on_device_select_changed(int)));
@@ -73,8 +93,21 @@ QtGui::QtGui(QWidget *parent)
 	connect(worker, &DetectorWorker::enable_all, this, &QtGui::on_operation_end_enable_all);
 	connect(worker, &DetectorWorker::disable_all, this, &QtGui::on_operation_start_disable_all);
 	connect(worker, &DetectorWorker::update_tab, this, &QtGui::update_progress_tab);
+
+	workerThread->start();
 }
 
+
+void QtGui::testeF() {
+
+	QMetaObject::invokeMethod(
+		worker, "w_recebido",
+		Qt::QueuedConnection);
+}
+
+void QtGui::voltando() {
+	//QMessageBox::information(this, "oi", "inferno");
+}
 //OK
 void QtGui::on_connect_btn_clicked() {
 	QString host_ip = ui.hostIpInput->text();
@@ -100,6 +133,10 @@ void QtGui::on_device_connect_signal(int num_devices) {
 	for (int i = 0; i < num_devices; i++) {
 		ui.deviceSelect->addItem("Dispositivo " + QString::number(i + 1));
 	}
+
+	QMetaObject::invokeMethod(
+		worker, "w_device_select",
+		Qt::QueuedConnection, Q_ARG(int, 0));
 }
 
 //OK
@@ -320,7 +357,7 @@ void QtGui::on_grab_btn_clicked() {
 	
 	string file_path = ui.filePathInput->text().toStdString();
 	string file_prefix = ui.filePrefixInput->text().toStdString();
-	int total_approximate_time = get_total_approximate_time();
+	time_t total_approximate_time = get_total_approximate_time();
 
 	if (file_prefix == "" || file_path == "" || total_approximate_time <= 0) {
 		QMessageBox::warning(this, "Aviso", "Preencha todos os campos antes de iniciar a opera\u00E7\u00E3o.");
@@ -330,14 +367,18 @@ void QtGui::on_grab_btn_clicked() {
 	//precisa checar também os parametros direto pelo dispositivo:
 	string acquisition_mode = ui.acquisitionModeInput->currentText().toStdString();
 	string mechanical_mode = ui.mechanicalModeInput->currentText().toStdString();
-	if (mechanical_mode == "Arduino") {
-		bool arduino_is_open;
-		QMetaObject::invokeMethod(worker, "w_arduino_check_open",
-			Qt::DirectConnection, Q_RETURN_ARG(bool, arduino_is_open));
+	if (acquisition_mode == "Tomografia") {
+		if (mechanical_mode == "Arduino") {
+			bool arduino_is_open;
+			QMetaObject::invokeMethod(worker, "w_arduino_check_open",
+				Qt::DirectConnection, Q_RETURN_ARG(bool, arduino_is_open));
 
-		if (!arduino_is_open) {
-			QMessageBox::warning(this, "Erro", "Porta serial não está aberta.");
-			return;}
+			if (!arduino_is_open) {
+				QMessageBox::warning(this, "Erro", "Porta serial não está aberta.");
+				return;
+			}
+		}
+		
 	}
 
 	int interval_time = ui.intervalTimeInput->text().toInt();
@@ -361,7 +402,7 @@ void QtGui::on_grab_btn_clicked() {
 		Q_ARG(int, image_quantity),
 		Q_ARG(QString, QString::fromStdString(file_path)),
 		Q_ARG(QString, QString::fromStdString(file_prefix)),
-		Q_ARG(int, total_approximate_time)
+		Q_ARG(time_t, total_approximate_time)
 	);
 }
 
@@ -421,7 +462,7 @@ void QtGui::on_stop_grab_btn_clicked() {
 }
 
 //TODO
-void QtGui::update_progress_tab(int index, int total_images, time_t starting_time, 
+void QtGui::update_progress_tab(int index, int total_images, time_t starting_time, time_t remaining_time,
 QString file_path, QString file_prefix)
 {
 	
@@ -463,13 +504,9 @@ QString file_path, QString file_prefix)
 	ui.elapsedTimeLabel->setText(elapsed_time_string);
 
 	//REMAINING TIME
-	int integration_time = ui.integrationTimeInput->text().toInt();
-	int interval_time = ui.intervalTimeInput->text().toInt();
-	int approximate_remaining_time = (total_images - index) *
-		(1 + (integration_time * 1.0) / 1000000 + (interval_time * 1.0) / 1000);
-	int rt_hh = approximate_remaining_time / 3600;
-	int rt_mm = (approximate_remaining_time % 3600) / 60;
-	int rt_ss = approximate_remaining_time % 60;
+	int rt_hh = remaining_time / 3600;
+	int rt_mm = (remaining_time % 3600) / 60;
+	int rt_ss = remaining_time % 60;
 	QString remaining_time_string = QString("Tempo restante: %1:%2:%3")
 		.arg(rt_hh, 3, 10, QChar('0'))
 		.arg(rt_mm, 2, 10, QChar('0'))
@@ -561,16 +598,18 @@ void QtGui::update_displayed_image(QString image_path) {
 }
 
 //TODO
-int QtGui::get_total_approximate_time() {
+time_t QtGui::get_total_approximate_time() {
+
+	QString acquisition_mode = ui.acquisitionModeInput->currentText();
 	int integration_time = ui.integrationTimeInput->text().toInt();
 	int interval_time = ui.intervalTimeInput->text().toInt();
 	
 	int image_quantity = 0;
-
-	QString acquisition_mode = ui.acquisitionModeInput->currentText();
+	float mechanical_signal_time = 0;
 
 	if (acquisition_mode.toStdString() == "Tomografia") {
 		image_quantity = ui.imageQuantityComboBox->currentText().toInt();
+		mechanical_signal_time = 0.25;
 	}
 	else {
 		image_quantity = ui.imageQuantityInput->text().toInt();
@@ -579,15 +618,15 @@ int QtGui::get_total_approximate_time() {
 	if (integration_time == 0 || image_quantity == 0)
 		return 0;
 
-	int approximate_total_time = image_quantity * 
-		(1 + (integration_time * 1.0)/1000000 + (interval_time * 1.0)/1000);
+	time_t approximate_time = image_quantity * ((integration_time * 3.0) / 1000000 + (interval_time * 1.0) / 1000 + mechanical_signal_time);
+		return approximate_time;
 
-	return approximate_total_time;
+	return approximate_time;
 }
 
 //TODO
 void QtGui::set_total_approximate_time() {
-	int total_time = get_total_approximate_time();
+	time_t total_time = get_total_approximate_time();
 	if (total_time != 0) {
 		int hh = total_time / 3600;
 		int mm = (total_time % 3600) / 60;
