@@ -230,7 +230,7 @@ QString file_path, QString file_prefix, time_t total_time)
 
 
 	//INICIO OPERACAO
-	for (int i = 0; i < image_quantity && this->stop_bnt_pressed == false; i++) {
+	for (int i = 0; i < image_quantity && !stopRequested.load(); i++) {
 		emit update_tab(i, image_quantity, starting_time, remaining_time, file_path, file_prefix);
 
 		QString inicioCicloX = " - Iniciando ciclo " + QString::number(i + 1);
@@ -269,14 +269,26 @@ QString file_path, QString file_prefix, time_t total_time)
 		remaining_time = w_calcular_tempo_restante(image_quantity, i + 1, starting_time);
 	}
 
+	if(stopRequested.load())
+		w_escrever_mensagem_t("log.txt", "Botao de parada acionado");
+
 	QString fimOperacao = " - Finalizando operacao " + file_prefix + ".dat \n";
 	w_escrever_mensagem_t("log.txt", fimOperacao);
 
 	emit update_tab(image_quantity, image_quantity, starting_time, remaining_time, file_path, file_prefix);
 	
+	stopRequested.store(false);
+
 	emit message_box_info("Aquisi\u00E7\u00E3o", "Opera\u00E7\u00E3o completa.");
 	emit enable_all();
 }
+
+void DetectorWorker::w_grab_stop_operation() {
+	this->xacquisition.Stop();
+	this->stop_bnt_pressed = true;
+	w_escrever_mensagem_t("log.txt", "Botao de parada acionado");
+}
+
 
 bool DetectorWorker::w_arduino_check_open() {
 	return (serial->isOpen());

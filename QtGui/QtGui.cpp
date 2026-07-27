@@ -217,9 +217,13 @@ void QtGui::on_acquisition_mode_changed(int index) {
 
 	if (selected_acquisition_mode == "Tomografia") {
 		ui.imageQuantityStackedWidget->setCurrentIndex(0);
+		ui.mechanicalModeInput->setDisabled(false);
+		ui.mechanicalConnectBtn->setDisabled(false);
 	}
 	else {
 		ui.imageQuantityStackedWidget->setCurrentIndex(1);
+		ui.mechanicalModeInput->setDisabled(true);
+		ui.mechanicalConnectBtn->setDisabled(true);
 	}
 
 	set_total_approximate_time();
@@ -452,13 +456,13 @@ void QtGui::on_operation_end_enable_all() {
 	ui.grabBtn->setDisabled(false);
 
 	ui.stopGrabBtn->setDisabled(true);
+	this->stop_bnt_pressed = false;
 }
 
 //TODO
 void QtGui::on_stop_grab_btn_clicked() {
-	/*this->stop_bnt_pressed = true;
-	this->xacquisition.Stop();
-	on_operation_end_enable_all();*/
+	this->stop_bnt_pressed = true;
+	worker->stopRequested.store(true);
 }
 
 //TODO
@@ -514,7 +518,10 @@ QString file_path, QString file_prefix)
 	ui.remainingTimeLabel->setText(remaining_time_string);
 
 	//STATUS
+
 	QString status_string = QString("Status: Em opera\u00E7\u00E3o");
+	if (this->stop_bnt_pressed == true)
+		status_string = QString("Status: Parado");
 	if (index == total_images) {
 		status_string = QString("Status: Conclu\u00eddo");
 	}
@@ -529,13 +536,9 @@ QString file_path, QString file_prefix)
 
 	//IMAGE
 	if (index != 0) {
-		QString image_path = (file_path + "/" + file_prefix + QString::number(index + 1) + ".dat");
+		QString image_path = (file_path + "/" + file_prefix + QString::number(index-1) + ".dat");
 		update_displayed_image(image_path);
 	}
-
-	//STOP BUTTON
-	/*if(this->stop_bnt_pressed == true)
-		status_string = QString("Status: Parado");*/
 }
 
 //TODO

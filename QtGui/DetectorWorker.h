@@ -36,6 +36,7 @@ public:
     void w_escrever_mensagem(const QString& caminhoArquivo, const QString& mensagem);
     void w_escrever_mensagem_t(const QString& caminhoArquivo, const QString& mensagem);
 
+    std::atomic_bool stopRequested{ false };
 
 private slots:
     void w_connect_detector(QString ip);
@@ -50,6 +51,7 @@ private slots:
         QString acquisition_mode, QString mechanical_mode, int interval_time, int image_quantity,
         QString file_path, QString file_prefix, time_t total_time);
 
+    void w_grab_stop_operation();
 
     void w_escrever_inicio_log(
         const QString& caminho_arquivo, QString acquisition_mode, QString mechanical_mode, int interval_time, int image_quantity,
