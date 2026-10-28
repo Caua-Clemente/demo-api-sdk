@@ -34,7 +34,7 @@
 #include <ctime>
 #include "utils.h"
 
-#pragma comment(lib, "..\\lib\\x64\\XLibDllKosti.lib")
+#pragma comment(lib, "XLibDllKosti.lib")
 
 using namespace std;
 

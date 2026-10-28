@@ -94,6 +94,38 @@ QtGui::QtGui(QWidget *parent)
 	connect(worker, &DetectorWorker::disable_all, this, &QtGui::on_operation_start_disable_all);
 	connect(worker, &DetectorWorker::update_tab, this, &QtGui::update_progress_tab);
 
+	//HELP TAB
+	QList<clickablelabel*> labels = {
+		ui.help_label_1, ui.help_label_2, ui.help_label_3, ui.help_label_4, ui.help_label_5, ui.help_label_6, 
+		ui.help_label_7, ui.help_label_8, ui.help_label_9, ui.help_label_10, ui.help_label_11, ui.help_label_12,
+		ui.help_label_13
+	};
+
+	QList<QWidget*> widgets = {
+		ui.help_widget_1, ui.help_widget_2, ui.help_widget_3, ui.help_widget_4, ui.help_widget_5, ui.help_widget_6,
+		ui.help_widget_7, ui.help_widget_8, ui.help_widget_9, ui.help_widget_10, ui.help_widget_11, ui.help_widget_12,
+		ui.help_widget_13
+	};
+
+	for (int i = 0; i < labels.size(); ++i) {
+		QWidget* conteudo = widgets[i];
+
+		if (i != 0)
+			conteudo->setVisible(0);
+
+		connect(labels[i], &clickablelabel::clicked, this,
+			[conteudo]() {
+				conteudo->setVisible(!conteudo->isVisible());
+
+				if (conteudo->parentWidget() &&
+					conteudo->parentWidget()->layout()) {
+					conteudo->parentWidget()->layout()->invalidate();
+					conteudo->parentWidget()->layout()->activate();
+				}
+			});
+	}
+
+
 	workerThread->start();
 }
 
@@ -539,6 +571,12 @@ QString file_path, QString file_prefix)
 		QString image_path = (file_path + "/" + file_prefix + QString::number(index-1) + ".dat");
 		update_displayed_image(image_path);
 	}
+}
+
+//HELP TAB BUTTONS
+void QtGui::hide_show_help_content(QWidget* conteudo)
+{
+	conteudo->setVisible(!conteudo->isVisible());
 }
 
 //TODO

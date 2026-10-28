@@ -34,9 +34,9 @@
 #include <windows.h>
 
 #ifdef _WIN64
-#pragma comment(lib, "..\\lib\\x64\\XLibDllKosti.lib")
+#pragma comment(lib, "XLibDllKosti.lib")
 #else
-#pragma comment(lib, "..\\lib\\x86\\XLibDllKosti.lib")
+#pragma comment(lib, "XLibDllKosti.lib")
 #endif
 
 #include <string>

@@ -5,6 +5,7 @@
 #include <QObject>
 #include <ctime>
 
+#include "clickablelabel.h"
 #include "ui_QtGui.h"
 
 class DetectorWorker;
@@ -58,6 +59,9 @@ private slots:
 
     void testeF();
     void voltando();
+
+    void hide_show_help_content(QWidget* conteudo);
+
 
 private:
     Ui::QtGuiClass ui;

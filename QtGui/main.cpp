@@ -9,7 +9,7 @@ int main(int argc, char *argv[])
     QApplication a(argc, argv);
     
     QtGui w;
-	w.setWindowTitle("Auto Detector DTi 1412i");
+	w.setWindowTitle("UESC-MicroXplorer");
 	w.setWindowIcon(QIcon(":/Assets/assets/x-ray.png"));
     w.show();
     return a.exec();

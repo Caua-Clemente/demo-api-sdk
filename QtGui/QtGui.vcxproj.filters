@@ -55,6 +55,9 @@
     <ClCompile Include="DetectorWorker.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="clickablelabel.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="CmdSink.h">
@@ -83,6 +86,9 @@
   </ItemGroup>
   <ItemGroup>
     <QtMoc Include="DetectorWorker.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
+    <QtMoc Include="clickablelabel.h">
       <Filter>Header Files</Filter>
     </QtMoc>
   </ItemGroup>
